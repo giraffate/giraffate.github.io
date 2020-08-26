@@ -3,4 +3,11 @@
     <url>
         <loc>https://mitaka.club/</loc>
     </url>
+    <url>
+        <loc>https://mitaka.club/page/1/</loc>
+    </url>
+    <url>
+        <loc>https://mitaka.club/use-zola/</loc>
+        <lastmod>2020-08-27</lastmod>
+    </url>
 </urlset>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+        <title>Mitaka Club</title>
+        <link>https://mitaka.club</link>
+        <description>三鷹で活動しているクラブチームです</description>
+        <generator>Zola</generator>
+        <language>en</language>
+        <atom:link href="https://mitaka.club/index.xml" rel="self" type="application/rss+xml"/>
+        <lastBuildDate>Thu, 27 Aug 2020 00:00:00 +0000</lastBuildDate>
+        <item>
+            <title>Zolaを使う</title>
+            <pubDate>Thu, 27 Aug 2020 00:00:00 +0000</pubDate>
+            <link>https://mitaka.club/use-zola/</link>
+            <guid>https://mitaka.club/use-zola/</guid>
+            <description>&lt;p&gt;今まではstatic site generatorとして&lt;a href=&quot;https:&#x2F;&#x2F;gohugo.io&#x2F;&quot;&gt;Hugo&lt;&#x2F;a&gt;を使っていたが、最近はRustに熱心なので&lt;a href=&quot;https:&#x2F;&#x2F;www.getzola.org&#x2F;&quot;&gt;Zola&lt;&#x2F;a&gt;を使うことにした。軽く一つ記事を作り上げるまでやってみたが、Hugoの方がCLIコマンドもテーマも豊富で、細かいmetaタグなどもしっかりしてそうで、完成度はまあそうですねといった感じだった。ただ、最近はRustに熱心なのと完成度低い方が使って育てたくなる気持ちがわいてくるのもあって、Zolaをこのまま使うことにした。&lt;&#x2F;p&gt;
+</description>
+        </item>
+    </channel>
+</rss>
