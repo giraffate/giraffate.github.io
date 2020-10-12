@@ -20,16 +20,17 @@
       
 <meta name="twitter:card" content="summary" />
 <meta name="twitter:site" content="@giraffate" />
-<meta property="og:url" content="https:&#x2F;&#x2F;mitaka.club" />
-<meta property="og:title" content="Mitaka Club" />
-<meta property="og:description" content="三鷹で活動しているクラブチームです" />
+<meta property="og:url" content="https:&#x2F;&#x2F;mitaka.club&#x2F;zola-output-dir&#x2F;" />
+<meta property="og:title" content="Zolaでoutput_dirを設定で有効にできるようにした" />
+<meta property="og:description" content="" />
 <meta property="og:image" content="https:&#x2F;&#x2F;mitaka.club/images/giraffate.jpg" />
 
     </head>
 
     <body class="hack dark main container">
         
-            
+    
+        
                 
                     <header>
                         <nav itemscope itemtype="http://schema.org/SiteNavigationElement">
@@ -68,48 +69,12 @@
                     </header>
                 
             
+    
 
-            <main>
-                
-                    <header>
-                        <h1>Mitaka Club</h1>
-                    </header>
-                
-                
-                    
-    <article itemscope itemtype="http://schema.org/CreativeWork">
-        <header>
-            <h2 itemprop="name">
-                <a href="https://mitaka.club/use-zola/">Zolaを使う</a>
-            </h2>
-            <span class="muted">
-    <svg style="margin-bottom:-3px" class="i-clock" viewBox="0 0 32 32"
-         width="16" height="16" fill="none" stroke="currentcolor"
-         stroke-linecap="round" stroke-linejoin="round" stroke-width="6.25%">
-        <circle cx="16" cy="16" r="14"/>
-        <path d="M16 8 L16 16 20 20"/>
-    </svg>
-    <span>1 minute read</span>
-    <svg style="margin-bottom: -3px" class="i-edit" viewBox="0 0 32 32"
-         width="16" height="16" fill="none" stroke="currentcolor"
-         stroke-linecap="round" stroke-linejoin="round" stroke-width="6.25%">
-        <path d="M30 7 L25 2 5 22 3 29 10 27 Z M21 6 L26 11 Z M5 22 L10 27 Z"/>
-    </svg>
-
-    Published: 2020-08-27
-</span>
-        </header>
-        
-    </article>
-
-                
-                    
-    <article itemscope itemtype="http://schema.org/CreativeWork">
-        <header>
-            <h2 itemprop="name">
-                <a href="https://mitaka.club/zola-output-dir/">Zolaでoutput_dirを設定で有効にできるようにした</a>
-            </h2>
-            <span class="muted">
+<article itemscope itemtype="http://schema.org/BlogPosting">
+    <header>
+        <h1 itemprop="headline">Zolaでoutput_dirを設定で有効にできるようにした</h1>
+        <span class="muted">
     <svg style="margin-bottom:-3px" class="i-clock" viewBox="0 0 32 32"
          width="16" height="16" fill="none" stroke="currentcolor"
          stroke-linecap="round" stroke-linejoin="round" stroke-width="6.25%">
@@ -125,21 +90,46 @@
 
     Published: 2020-10-12
 </span>
-        </header>
-        
-    </article>
+    </header>
+    <div itemprop="articleBody">
+      <h1 id="tl-dr">tl;dr</h1>
+<p><a href="https://github.com/getzola/zola">Zola</a>に<code>config.toml</code>で<code>output-dir</code>を指定できるようにした。</p>
+<h1 id="motivation">Motivation</h1>
+<p><a href="https://zola.discourse.group/t/output-dir-in-config-toml/563">discourse</a>に書いたことだが、Zolaではビルドしするとファイルはデフォルトで<code>public</code>フォルダに生成されるのだけれど、これを<code>zola build --output-dir docs</code>のようにフラグで生成されるフォルダを変更できる。自分はGitHub Pagesを使っていてこれは<code>docs</code>フォルダを使えるのだけど、毎回コマンド実行時にフォルダ指定するのはだるいので<code>config.toml</code>に生成先のフォルダを設定しておきたかった。<a href="https://gohugo.io/getting-started/usage/#the-hugo-command">前に使ってたHugoだとできたし</a>。</p>
+<h1 id="implementation">Implementation</h1>
+<p>Zolaではfeature requestするときはまずdiscourseにスレッドを立てるということだったので上述のスレッドを立てた。メンテナーからいいんじゃないのといったコメントをもらったので<a href="https://github.com/getzola/zola/pull/1200">PR</a>を開いた。それほど難しくもなく実装はすぐに終えることができそのままマージしてもらった。</p>
+<p><code>config.toml</code>に以下のように記載すればフラグを指定しなくても生成先のフォルダを変更できるようになる。</p>
+<pre style="background-color:#2b303b;">
+<code><span style="color:#bf616a;">output_dir </span><span style="color:#c0c5ce;">= &quot;</span><span style="color:#a3be8c;">docs</span><span style="color:#c0c5ce;">&quot;
+</span></code></pre><h1 id="conclusion">Conclusion</h1>
+<p>普段はissueベースでパッチを送るのだけど、自分でこの機能がほしいと言って実装したのは初めてだった。前記事でも書いたが多少完成度は低くてもこうやって使いながら不足している機能があればパッチを送って育てていくのは楽しい。</p>
 
+    </div>
+
+    
+        <footer>
+            <hr>
+            <p>
                 
+                
+                    
+                    in <a href="https://mitaka.club/categories/programming/">programming</a>
+                
+                
+                    and tagged
+                    
+                        <a href="https://mitaka.club/tags/rust/">rust</a>
+                        
+                    
+                
+            </p>
+            
+            
+        </footer>
+    
+</article>
 
-                <nav>
-                  <p>
-                    
-                    <span>Page 1 of 1</span>
-                    
-                  </p>
-                </nav>
-            </main>
-        
+
     </body>
 
 </html>

@@ -22,4 +22,8 @@
         <loc>https://mitaka.club/use-zola/</loc>
         <lastmod>2020-08-27</lastmod>
     </url>
+    <url>
+        <loc>https://mitaka.club/zola-output-dir/</loc>
+        <lastmod>2020-10-12</lastmod>
+    </url>
 </urlset>
