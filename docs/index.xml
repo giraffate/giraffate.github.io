@@ -7,7 +7,57 @@
         <generator>Zola</generator>
         <language>en</language>
         <atom:link href="https://mitaka.club/index.xml" rel="self" type="application/rss+xml"/>
-        <lastBuildDate>Mon, 12 Oct 2020 00:00:00 +0000</lastBuildDate>
+        <lastBuildDate>Fri, 08 Jan 2021 00:00:00 +0000</lastBuildDate>
+        <item>
+            <title>2020 年を振り返る</title>
+            <pubDate>Fri, 08 Jan 2021 00:00:00 +0000</pubDate>
+            <link>https://mitaka.club/looking-back-to-2020/</link>
+            <guid>https://mitaka.club/looking-back-to-2020/</guid>
+            <description>&lt;h1 id=&quot;2020&quot;&gt;2020&lt;&#x2F;h1&gt;
+&lt;h2 id=&quot;watched&quot;&gt;Watched&lt;&#x2F;h2&gt;
+&lt;p&gt;2020 年の趣味における目標として Netflix を1年間継続して見続けるというのを決めていた。見ていたのはドキュメンタリーとアニメがほとんどだった。元々は嵐のドキュメンタリーが見たくて Netflix を契約したが、面白いコンテンツがたくさんあってよかった。 Amazon prime video だけど、 All or Nothing は、マンチェスターシティを見たことがあってこれがおもしろかったのだけれど、今回のトッテナムもやはりおもしろかった。モウリーニョってこんな人なんだ、というのが見られる。スタンドアップコメディでは Patriot Act がおもしろかったのだけれど、政治的なあれこれで放送中止になってしまったのが残念だった。せめて大統領選まで続いてくれたらよかったのだけれど。あまりドラマは得意ではないのだけれど、 The Queen&#x27;s Gambit はおもしろかった。アニメはプロメアがよかった。&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;The Queen&#x27;s Gambit&lt;&#x2F;li&gt;
+&lt;li&gt;All or Nothing: Tottenham Hotspur&lt;&#x2F;li&gt;
+&lt;li&gt;ARASHI&#x27;s Diary -Voyage-&lt;&#x2F;li&gt;
+&lt;li&gt;SAO&lt;&#x2F;li&gt;
+&lt;li&gt;BLACKPINK: Light Up the Sky&lt;&#x2F;li&gt;
+&lt;li&gt;ゆるキャン(ドラマ)&lt;&#x2F;li&gt;
+&lt;li&gt;The Chef Show&lt;&#x2F;li&gt;
+&lt;li&gt;ストリート・グルメを求めて: ラテンアメリカ&lt;&#x2F;li&gt;
+&lt;li&gt;プロメア&lt;&#x2F;li&gt;
+&lt;li&gt;かぐや様は告らせたい&lt;&#x2F;li&gt;
+&lt;li&gt;ヴァイオレットエバーガーデン&lt;&#x2F;li&gt;
+&lt;li&gt;Patriot Act with Hasan Minhaj&lt;&#x2F;li&gt;
+&lt;li&gt;タコスのすべて&lt;&#x2F;li&gt;
+&lt;li&gt;SSSS.GRIDMAN&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h2 id=&quot;book&quot;&gt;Book&lt;&#x2F;h2&gt;
+&lt;p&gt;今年の前半は数学とコンピュータアーキテクチャに関する本を読んでいた。パタヘネも買ったけど積んでいる。技術書はそれ以降あまり読んでなくて、仕事でデータ基盤まわりに関わりそうだったのでビッグデータの本を一冊だけ読んだ。毎年の楽しみの一つである少女ファイトは引き続き新刊を読んだ。コロナ禍で家にこもりがちだったときにアーバンアウトドアライフという本をたまたま見つけて読んでみたが、近所でももっと気軽に野外を楽しめるという発見があっておもしろかった。実際自分の行動に多少なりとも影響を与えたと思う。&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;ビッグデータを支える技術&lt;&#x2F;li&gt;
+&lt;li&gt;世界のスーパーカー大図鑑&lt;&#x2F;li&gt;
+&lt;li&gt;少女ファイト&lt;&#x2F;li&gt;
+&lt;li&gt;鬼滅の刃&lt;&#x2F;li&gt;
+&lt;li&gt;アーバンアウトドアライフ&lt;&#x2F;li&gt;
+&lt;li&gt;自作エミュレータで学ぶx86アーキテクチャ&lt;&#x2F;li&gt;
+&lt;li&gt;コンピュータシステムの理論と実装&lt;&#x2F;li&gt;
+&lt;li&gt;やさしく学べる離散数学&lt;&#x2F;li&gt;
+&lt;li&gt;集合・位相入門(松坂)&lt;&#x2F;li&gt;
+&lt;li&gt;論理学&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h2 id=&quot;oss&quot;&gt;OSS&lt;&#x2F;h2&gt;
+&lt;p&gt;2020 年前半はコロナ禍で環境が目まぐるしく変化して余裕がなかったのでほとんど活動しなかった。後半になって &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;rust-lang&#x2F;rust-clippy&quot;&gt;rust-lang&#x2F;rust-clippy&lt;&#x2F;a&gt; で積極的に活動するようになった。 collaborator 権限いる？と聞かれたのでもらっておいた。自作エミュレータで学ぶx86アーキテクチャ という本で簡単な C で書かれたx86エミュレーターを Rust で書き直した (&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;giraffate&#x2F;x86emu&quot;&gt;https:&#x2F;&#x2F;github.com&#x2F;giraffate&#x2F;x86emu&lt;&#x2F;a&gt;)。 &lt;a href=&quot;https:&#x2F;&#x2F;craftinginterpreters.com&#x2F;classes.html&quot;&gt;Crafting Interpreters&lt;&#x2F;a&gt; で Lox という言語のインタープリターが Java で書かれてあるのだが、これを途中までだが Rust で書き直した (&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;giraffate&#x2F;rlox&quot;&gt;https:&#x2F;&#x2F;github.com&#x2F;giraffate&#x2F;rlox&lt;&#x2F;a&gt;)。&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;giraffate?tab=overview&amp;amp;from=2020-12-01&amp;amp;to=2020-12-31&quot;&gt;https:&#x2F;&#x2F;github.com&#x2F;giraffate?tab=overview&amp;amp;from=2020-12-01&amp;amp;to=2020-12-31&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h1 id=&quot;2021&quot;&gt;2021&lt;&#x2F;h1&gt;
+&lt;h2 id=&quot;hobby&quot;&gt;Hobby&lt;&#x2F;h2&gt;
+&lt;p&gt;2020 年は Netflix を1年継続して見るというのが目標だった。 2021 年は将棋をやってみようかと考えている。&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;oss-1&quot;&gt;OSS&lt;&#x2F;h2&gt;
+&lt;p&gt;2020 年に引き続き Rust コミュニティ、おそらく Clippy に関わっていくと思う。 Clippy の &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;rust-lang&#x2F;rust-clippy&#x2F;pull&#x2F;6462&quot;&gt;Roadmap for 2021&lt;&#x2F;a&gt; からわかるように 2021 年はいろいろ変化がありそうで今から楽しみだ。&lt;&#x2F;p&gt;
+</description>
+        </item>
         <item>
             <title>Zolaでoutput_dirを設定で有効にできるようにした</title>
             <pubDate>Mon, 12 Oct 2020 00:00:00 +0000</pubDate>
