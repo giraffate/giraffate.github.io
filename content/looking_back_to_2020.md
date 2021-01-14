@@ -5,6 +5,7 @@ date = 2021-01-08
 tags = ["looking back"]
 categories = ["diary"]
 +++
+2020 年を振り返る。 2021 年のことも少し書く。<!-- more -->
 
 # 2020
 ## Watched

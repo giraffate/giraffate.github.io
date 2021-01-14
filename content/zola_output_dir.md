@@ -6,8 +6,7 @@ tags = ["rust"]
 categories = ["programming"]
 +++
 
-# tl;dr
-[Zola](https://github.com/getzola/zola)に`config.toml`で`output-dir`を指定できるようにした。
+[Zola](https://github.com/getzola/zola)に`config.toml`で`output-dir`を指定できるようにした。<!-- more -->
 
 # Motivation
 [discourse](https://zola.discourse.group/t/output-dir-in-config-toml/563)に書いたことだが、Zolaではビルドしするとファイルはデフォルトで`public`フォルダに生成されるのだけれど、これを`zola build --output-dir docs`のようにフラグで生成されるフォルダを変更できる。自分はGitHub Pagesを使っていてこれは`docs`フォルダを使えるのだけど、毎回コマンド実行時にフォルダ指定するのはだるいので`config.toml`に生成先のフォルダを設定しておきたかった。[前に使ってたHugoだとできたし](https://gohugo.io/getting-started/usage/#the-hugo-command)。
