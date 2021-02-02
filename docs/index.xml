@@ -7,7 +7,14 @@
         <generator>Zola</generator>
         <language>en</language>
         <atom:link href="https://mitaka.club/index.xml" rel="self" type="application/rss+xml"/>
-        <lastBuildDate>Fri, 08 Jan 2021 00:00:00 +0000</lastBuildDate>
+        <lastBuildDate>Tue, 02 Feb 2021 00:00:00 +0000</lastBuildDate>
+        <item>
+            <title>giraffate&#x2F;ghrs</title>
+            <pubDate>Tue, 02 Feb 2021 00:00:00 +0000</pubDate>
+            <link>https://mitaka.club/introduce-ghrs/</link>
+            <guid>https://mitaka.club/introduce-ghrs/</guid>
+            <description>&lt;p&gt;何番煎じかわからないが &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;giraffate&#x2F;ghrs&quot;&gt;ghrs&lt;&#x2F;a&gt; という GitHub Client を Rust で書いた。最初は会社の評価資料を書くために GitHub API から Event を取得する CLI を書いていたのだがちょうどいい GitHub Client がなかったのでそこから自分で書いた。</description>
+        </item>
         <item>
             <title>2020 年を振り返る</title>
             <pubDate>Fri, 08 Jan 2021 00:00:00 +0000</pubDate>
