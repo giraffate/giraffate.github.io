@@ -1,134 +1,50 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
     <head>
-      <meta http-equiv="X-UA-Compatible" content="IE=edge">
-      <meta http-equiv="content-type" content="text/html; charset=utf-8">
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
 
-      <!-- Enable responsiveness on mobile devices-->
-      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+        <title>Mitaka Club</title>
+        <meta name="description" content="三鷹で活動しているクラブチームです">
 
-      <title>Mitaka Club</title>
-
-      
-        <link rel="alternate" type="application/rss+xml" title="RSS" href="https://mitaka.club/index.xml">
-      
-
-      
-          <link rel="stylesheet" href="https://mitaka.club/site.css">
-      
-
-      
-<meta name="twitter:card" content="summary" />
-<meta name="twitter:site" content="@giraffate" />
-<meta property="og:url" content="https:&#x2F;&#x2F;mitaka.club&#x2F;zola-output-dir&#x2F;" />
-<meta property="og:title" content="Zolaでoutput_dirを設定で有効にできるようにした" />
-<meta property="og:description" content="&lt;p&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;getzola&#x2F;zola&quot;&gt;Zola&lt;&#x2F;a&gt;に&lt;code&gt;config.toml&lt;&#x2F;code&gt;で&lt;code&gt;output-dir&lt;&#x2F;code&gt;を指定できるようにした。" />
-<meta property="og:image" content="https:&#x2F;&#x2F;mitaka.club/images/giraffate.jpg" />
-
+        <meta name="twitter:card" content="summary" />
+        <meta name="twitter:site" content="@giraffate" />
+        <meta property="og:url" content="https:&#x2F;&#x2F;mitaka.club" />
+        <meta property="og:title" content="Mitaka Club" />
+        <meta property="og:description" content="三鷹で活動しているクラブチームです" />
+        <meta property="og:image" content="https:&#x2F;&#x2F;mitaka.club/images/giraffate.jpg" />
     </head>
-
-    <body class="hack dark main container">
-        
     
+    <body>
+        <header>
+            <nav>
+                <a href="/">Home</a>
+                <a href="https://github.com/giraffate">GitHub</a>
+                <a href="https://twitter.com/giraffate">Twitter</a>
+                <a href="/index.xml">RSS</a>
+            </nav>
+        </header>
         
-                
-                    <header>
-                        <nav itemscope itemtype="http://schema.org/SiteNavigationElement">
-                        
-                            <a itemprop="url"
-                               class=""
-                               href="https:&#x2F;&#x2F;mitaka.club">
-                                <span itemprop="name">Home
-                                </span></a>
-                        
-                            <a itemprop="url"
-                               class=""
-                               href="https:&#x2F;&#x2F;mitaka.club&#x2F;categories">
-                                <span itemprop="name">Categories
-                                </span></a>
-                        
-                            <a itemprop="url"
-                               class=""
-                               href="https:&#x2F;&#x2F;mitaka.club&#x2F;tags">
-                                <span itemprop="name">Tags
-                                </span></a>
-                        
-                            <a itemprop="url"
-                               class=""
-                               href="https:&#x2F;&#x2F;github.com&#x2F;giraffate">
-                                <span itemprop="name">GitHub
-                                </span></a>
-                        
-                            <a itemprop="url"
-                               class=""
-                               href="https:&#x2F;&#x2F;twitter.com&#x2F;giraffate">
-                                <span itemprop="name">Twitter
-                                </span></a>
-                        
-                        </nav>
-                    </header>
-                
-            
-    
+<main>
+    <article>
+        <h1>Zolaでoutput_dirを設定で有効にできるようにした</h1>
+        <time>2020-10-12</time>
 
-<article itemscope itemtype="http://schema.org/BlogPosting">
-    <header>
-        <h1 itemprop="headline">Zolaでoutput_dirを設定で有効にできるようにした</h1>
-        <span class="muted">
-    <svg style="margin-bottom:-3px" class="i-clock" viewBox="0 0 32 32"
-         width="16" height="16" fill="none" stroke="currentcolor"
-         stroke-linecap="round" stroke-linejoin="round" stroke-width="6.25%">
-        <circle cx="16" cy="16" r="14"/>
-        <path d="M16 8 L16 16 20 20"/>
-    </svg>
-    <span>3 minute read</span>
-    <svg style="margin-bottom: -3px" class="i-edit" viewBox="0 0 32 32"
-         width="16" height="16" fill="none" stroke="currentcolor"
-         stroke-linecap="round" stroke-linejoin="round" stroke-width="6.25%">
-        <path d="M30 7 L25 2 5 22 3 29 10 27 Z M21 6 L26 11 Z M5 22 L10 27 Z"/>
-    </svg>
-
-    Published: 2020-10-12
-</span>
-    </header>
-    <div itemprop="articleBody">
-      <p><a href="https://github.com/getzola/zola">Zola</a>に<code>config.toml</code>で<code>output-dir</code>を指定できるようにした。<span id="continue-reading"></span></p>
-<h1 id="motivation">Motivation</h1>
+        <div>
+            <p><a href="https://github.com/getzola/zola">Zola</a>に<code>config.toml</code>で<code>output-dir</code>を指定できるようにした。<span id="continue-reading"></span></p>
+<h2 id="motivation">Motivation</h2>
 <p><a href="https://zola.discourse.group/t/output-dir-in-config-toml/563">discourse</a>に書いたことだが、Zolaではビルドしするとファイルはデフォルトで<code>public</code>フォルダに生成されるのだけれど、これを<code>zola build --output-dir docs</code>のようにフラグで生成されるフォルダを変更できる。自分はGitHub Pagesを使っていてこれは<code>docs</code>フォルダを使えるのだけど、毎回コマンド実行時にフォルダ指定するのはだるいので<code>config.toml</code>に生成先のフォルダを設定しておきたかった。<a href="https://gohugo.io/getting-started/usage/#the-hugo-command">前に使ってたHugoだとできたし</a>。</p>
-<h1 id="implementation">Implementation</h1>
+<h2 id="implementation">Implementation</h2>
 <p>Zolaではfeature requestするときはまずdiscourseにスレッドを立てるということだったので上述のスレッドを立てた。メンテナーからいいんじゃないのといったコメントをもらったので<a href="https://github.com/getzola/zola/pull/1200">PR</a>を開いた。それほど難しくもなく実装はすぐに終えることができそのままマージしてもらった。</p>
 <p><code>config.toml</code>に以下のように記載すればフラグを指定しなくても生成先のフォルダを変更できるようになる。</p>
 <pre style="background-color:#2b303b;">
 <code class="language-toml" data-lang="toml"><span style="color:#bf616a;">output_dir </span><span style="color:#c0c5ce;">= &quot;</span><span style="color:#a3be8c;">docs</span><span style="color:#c0c5ce;">&quot;
-</span></code></pre><h1 id="conclusion">Conclusion</h1>
+</span></code></pre><h2 id="conclusion">Conclusion</h2>
 <p>普段はissueベースでパッチを送るのだけど、自分でこの機能がほしいと言って実装したのは初めてだった。前記事でも書いたが多少完成度は低くてもこうやって使いながら不足している機能があればパッチを送って育てていくのは楽しい。</p>
 
-    </div>
-
-    
-        <footer>
-            <hr>
-            <p>
-                
-                
-                    
-                    in <a href="https://mitaka.club/categories/programming/">programming</a>
-                
-                
-                    and tagged
-                    
-                        <a href="https://mitaka.club/tags/rust/">rust</a>
-                        
-                    
-                
-            </p>
-            
-            
-        </footer>
-    
-</article>
-
+        </div>
+    </article>
+</main>
 
     </body>
-
 </html>

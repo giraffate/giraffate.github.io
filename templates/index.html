@@ -1,9 +1,26 @@
-{% extends "after-dark/templates/index.html" %}
-{% block extra_head %}
-<meta name="twitter:card" content="summary" />
-<meta name="twitter:site" content="@giraffate" />
-<meta property="og:url" content="{{ config.base_url }}" />
-<meta property="og:title" content="{{ config.title }}" />
-<meta property="og:description" content="{{ config.description }}" />
-<meta property="og:image" content="{{ config.base_url }}/images/giraffate.jpg" />
+{% extends "base.html" %}
+
+{% block content %}
+<main>
+    <h1>{{ config.title }}</h1>
+    {% for page in paginator.pages %}
+        <article>
+            <h2>
+                <a href="{{ page.permalink | safe }}">{{ page.title }}</a>
+            </h2>
+        </article>
+    {% endfor %}
+
+    <nav>
+        <p>
+          {% if paginator.previous %}
+            <a href="{{ paginator.previous }}">&laquo; Previous</a> |
+          {% endif %}
+          <span>Page {{ paginator.current_index }} of {{ paginator.number_pagers }}</span>
+          {% if paginator.next %}
+            | <a href="{{ paginator.next }}">Next &raquo;</a>
+          {% endif %}
+        </p>
+      </nav>
+</main>
 {% endblock %}

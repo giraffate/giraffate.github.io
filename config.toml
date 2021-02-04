@@ -9,7 +9,7 @@ description = "三鷹で活動しているクラブチームです"
 default_language = "en"
 
 # The site theme to use.
-theme = "after-dark"
+# theme = "after-dark"
 
 # When set to "true", a feed is automatically generated.
 generate_feed = true
@@ -20,17 +20,17 @@ generate_feed = true
 feed_filename = "index.xml"
 
 # The taxonomies to be rendered for the site and their configuration.
-taxonomies = [
-    # You can enable/disable RSS
-    {name = "categories", rss = true},
-    {name = "tags", rss = true},
-]
+# taxonomies = [
+#     # You can enable/disable RSS
+#     {name = "categories", rss = true},
+#     {name = "tags", rss = true},
+# ]
 
 # Whether to automatically compile all Sass files in the sass directory
 compile_sass = false
 
 # Whether to build a search index to be used later on by a JavaScript library
-build_search_index = true
+build_search_index = false
 
 output_dir = "docs"
 
