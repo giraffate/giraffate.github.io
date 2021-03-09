@@ -7,7 +7,36 @@
         <generator>Zola</generator>
         <language>en</language>
         <atom:link href="https://mitaka.club/index.xml" rel="self" type="application/rss+xml"/>
-        <lastBuildDate>Tue, 02 Feb 2021 00:00:00 +0000</lastBuildDate>
+        <lastBuildDate>Tue, 09 Mar 2021 00:00:00 +0000</lastBuildDate>
+        <item>
+            <title>Use Clippy built on my local machine</title>
+            <pubDate>Tue, 09 Mar 2021 00:00:00 +0000</pubDate>
+            <link>https://mitaka.club/use-clippy-built-locally/</link>
+            <guid>https://mitaka.club/use-clippy-built-locally/</guid>
+            <description>&lt;p&gt;This is a note about the way to use Clippy built on my local machine. It&#x27;s helpful when checking the implementation of new lints, and finding some bugs and false positives.&lt;&#x2F;p&gt;
+&lt;ol&gt;
+&lt;li&gt;Build Clippy&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;pre style=&quot;background-color:#2b303b;&quot;&gt;
+&lt;code&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;$ cargo build
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;ol start=&quot;2&quot;&gt;
+&lt;li&gt;Set the &lt;code&gt;LD_LIBRARY_PATH&lt;&#x2F;code&gt; and run Clippy on the repository which I want to do for&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;pre style=&quot;background-color:#2b303b;&quot;&gt;
+&lt;code&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;$ LD_LIBRARY_PATH=$(rustc --print sysroot)&#x2F;lib  path&#x2F;to&#x2F;rust-clippy&#x2F;target&#x2F;debug&#x2F;cargo-clippy --all-targets --all-features -- -Wclippy::all
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;ol start=&quot;3&quot;&gt;
+&lt;li&gt;Oh, at the time of writing this note, I may need to set the toolchain same as the one Clippy use (see &lt;code&gt;rust-toolchain&lt;&#x2F;code&gt; file in Clippy repo). Anyway, I overrode it.&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;pre style=&quot;background-color:#2b303b;&quot;&gt;
+&lt;code&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;$  rustup override set nightly-2021-02-25
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;ol start=&quot;4&quot;&gt;
+&lt;li&gt;Clippy works on my local machine!&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+</description>
+        </item>
         <item>
             <title>giraffate&#x2F;ghrs</title>
             <pubDate>Tue, 02 Feb 2021 00:00:00 +0000</pubDate>
