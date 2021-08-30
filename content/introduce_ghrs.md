@@ -6,7 +6,7 @@ tags = ["rust"]
 categories = ["programming"]
 +++
 
-何番煎じかわからないが [ghrs](https://github.com/giraffate/ghrs) という GitHub Client を Rust で書いた。最初は会社の評価資料を書くために GitHub API から Event を取得する CLI を書いていたのだがちょうどいい GitHub Client がなかったのでそこから自分で書いた。<!-- more -->
+何番煎じかわからないが [ghrs](https://github.com/giraffate/ghrs) という GitHub Client を Rust で書いた。最初は会社の評価資料を書くために GitHub API から Event を取得する CLI を書いていたのだがちょうどいい GitHub Client がなかったのでそこから自分で書いた。
 
 README に書いてある通り、 [Octocrab](https://github.com/XAMPPRocky/octocrab) のインターフェースをかなり参考にしている。ただ、 ちょっとした CLI を書くのに `async` 使うのはやりすぎと思っていたので、 Octocrab に似たようなインターフェースで blocking I/O でよいのでシンプルに書ける GitHub Client を探していたが見つからなかったので [ghrs](https://github.com/giraffate/ghrs) を書いた。
 

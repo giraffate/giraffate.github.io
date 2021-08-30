@@ -20,7 +20,7 @@
 <meta name="twitter:site" content="@giraffate" />
 <meta property="og:url" content="https:&#x2F;&#x2F;mitaka.club&#x2F;introduce-ghrs&#x2F;" />
 <meta property="og:title" content="giraffate&#x2F;ghrs" />
-<meta property="og:description" content="&lt;p&gt;何番煎じかわからないが &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;giraffate&#x2F;ghrs&quot;&gt;ghrs&lt;&#x2F;a&gt; という GitHub Client を Rust で書いた。最初は会社の評価資料を書くために GitHub API から Event を取得する CLI を書いていたのだがちょうどいい GitHub Client がなかったのでそこから自分で書いた。" />
+<meta property="og:description" content="" />
 <meta property="og:image" content="https:&#x2F;&#x2F;mitaka.club/images/giraffate.jpg" />
 
 </head>
@@ -60,7 +60,7 @@
         <h1>giraffate&#x2F;ghrs</h1>
     </header>
     <div class="content">
-        <p>何番煎じかわからないが <a href="https://github.com/giraffate/ghrs">ghrs</a> という GitHub Client を Rust で書いた。最初は会社の評価資料を書くために GitHub API から Event を取得する CLI を書いていたのだがちょうどいい GitHub Client がなかったのでそこから自分で書いた。<span id="continue-reading"></span></p>
+        <p>何番煎じかわからないが <a href="https://github.com/giraffate/ghrs">ghrs</a> という GitHub Client を Rust で書いた。最初は会社の評価資料を書くために GitHub API から Event を取得する CLI を書いていたのだがちょうどいい GitHub Client がなかったのでそこから自分で書いた。</p>
 <p>README に書いてある通り、 <a href="https://github.com/XAMPPRocky/octocrab">Octocrab</a> のインターフェースをかなり参考にしている。ただ、 ちょっとした CLI を書くのに <code>async</code> 使うのはやりすぎと思っていたので、 Octocrab に似たようなインターフェースで blocking I/O でよいのでシンプルに書ける GitHub Client を探していたが見つからなかったので <a href="https://github.com/giraffate/ghrs">ghrs</a> を書いた。</p>
 <h2 id="usage">Usage</h2>
 <p><a href="https://docs.github.com/en/rest/reference/pulls#list-pull-requests">pull request の一覧を取得する</a>場合は以下のように書ける。レスポンスの Link ヘッダーを見て次ページも取得できる。ただし、まだ issue, pull request, event の取得しか対応していない。</p>

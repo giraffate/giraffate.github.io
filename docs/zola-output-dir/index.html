@@ -20,7 +20,7 @@
 <meta name="twitter:site" content="@giraffate" />
 <meta property="og:url" content="https:&#x2F;&#x2F;mitaka.club&#x2F;zola-output-dir&#x2F;" />
 <meta property="og:title" content="Zolaでoutput_dirを設定で有効にできるようにした" />
-<meta property="og:description" content="&lt;p&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;getzola&#x2F;zola&quot;&gt;Zola&lt;&#x2F;a&gt;に&lt;code&gt;config.toml&lt;&#x2F;code&gt;で&lt;code&gt;output-dir&lt;&#x2F;code&gt;を指定できるようにした。" />
+<meta property="og:description" content="" />
 <meta property="og:image" content="https:&#x2F;&#x2F;mitaka.club/images/giraffate.jpg" />
 
 </head>
@@ -60,7 +60,7 @@
         <h1>Zolaでoutput_dirを設定で有効にできるようにした</h1>
     </header>
     <div class="content">
-        <p><a href="https://github.com/getzola/zola">Zola</a>に<code>config.toml</code>で<code>output-dir</code>を指定できるようにした。<span id="continue-reading"></span></p>
+        <p><a href="https://github.com/getzola/zola">Zola</a>に<code>config.toml</code>で<code>output-dir</code>を指定できるようにした。</p>
 <h2 id="motivation">Motivation</h2>
 <p><a href="https://zola.discourse.group/t/output-dir-in-config-toml/563">discourse</a>に書いたことだが、Zolaではビルドしするとファイルはデフォルトで<code>public</code>フォルダに生成されるのだけれど、これを<code>zola build --output-dir docs</code>のようにフラグで生成されるフォルダを変更できる。自分はGitHub Pagesを使っていてこれは<code>docs</code>フォルダを使えるのだけど、毎回コマンド実行時にフォルダ指定するのはだるいので<code>config.toml</code>に生成先のフォルダを設定しておきたかった。<a href="https://gohugo.io/getting-started/usage/#the-hugo-command">前に使ってたHugoだとできたし</a>。</p>
 <h2 id="implementation">Implementation</h2>
