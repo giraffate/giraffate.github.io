@@ -4,6 +4,10 @@
         <loc>https://mitaka.club/</loc>
     </url>
     <url>
+        <loc>https://mitaka.club/20210830/</loc>
+        <lastmod>2021-08-30</lastmod>
+    </url>
+    <url>
         <loc>https://mitaka.club/categories/</loc>
     </url>
     <url>
@@ -22,6 +26,9 @@
     </url>
     <url>
         <loc>https://mitaka.club/page/1/</loc>
+    </url>
+    <url>
+        <loc>https://mitaka.club/page/2/</loc>
     </url>
     <url>
         <loc>https://mitaka.club/tags/</loc>

@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="HandheldFriendly" content="True">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer-when-downgrade">
+
+    <title>四則演算を再帰下降で書く(Rust)</title>
+    <meta name="description" content="三鷹で活動しているクラブチームです">
+
+    <link rel="stylesheet" href="https:&#x2F;&#x2F;mitaka.club&#x2F;main.css">
+
+    
+        <link rel="alternate" type="application/rss+xml" title="RSS" href="https://mitaka.club/index.xml">
+    
+
+    
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:site" content="@giraffate" />
+<meta property="og:url" content="https:&#x2F;&#x2F;mitaka.club&#x2F;20210830&#x2F;" />
+<meta property="og:title" content="四則演算を再帰下降で書く(Rust)" />
+<meta property="og:description" content="" />
+<meta property="og:image" content="https:&#x2F;&#x2F;mitaka.club/images/giraffate.jpg" />
+
+</head>
+<body>
+    <a class="skip-main" href="#main">Skip to content</a>
+    <div class="container">
+        <header> 
+            <h1 class="site-header">
+                <a href="https:&#x2F;&#x2F;mitaka.club">Mitaka Club</a>
+            </h1>
+            <nav>
+                
+                
+                
+                <a  href="https:&#x2F;&#x2F;mitaka.club">Home</a>
+                
+                
+                <a  href="https:&#x2F;&#x2F;mitaka.club&#x2F;categories">Categories</a>
+                
+                
+                <a  href="https:&#x2F;&#x2F;mitaka.club&#x2F;tags">Tags</a>
+                
+                
+                <a  href="https:&#x2F;&#x2F;github.com&#x2F;giraffate">GitHub</a>
+                
+                
+                <a  href="https:&#x2F;&#x2F;twitter.com&#x2F;giraffate">Twitter</a>
+                
+                
+            </nav>
+        </header>
+        <main id="main" tabindex="-1">
+            
+
+<article class="post">
+    <header>
+        <h1>四則演算を再帰下降で書く(Rust)</h1>
+    </header>
+    <div class="content">
+        <p>覚えてるかなと思ってサッと書いてみた。テスト通ってるし多分動くと思う。テスト含めて200行くらいなので勉強したい言語で書いてみるのもいいかもしれない、TypeScriptとか。</p>
+<pre style="background-color:#2b303b;">
+<code class="language-rust" data-lang="rust"><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">main</span><span style="color:#c0c5ce;">() {
+    </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> s = &quot;</span><span style="color:#a3be8c;">1 + 1</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">();
+    </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> tokens = </span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(s);
+    </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> parser = Parser { tokens, idx: </span><span style="color:#d08770;">0 </span><span style="color:#c0c5ce;">};
+    </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> ret = parser.</span><span style="color:#96b5b4;">expr</span><span style="color:#c0c5ce;">();
+    println!(&quot;</span><span style="color:#d08770;">{}</span><span style="color:#c0c5ce;">&quot;, ret);
+}
+
+</span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">lexer</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">s</span><span style="color:#c0c5ce;">: String) -&gt; Vec&lt;String&gt; {
+    </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> ret = Vec::new();
+    </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> num = Vec::new();
+
+    </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> chars: Vec&lt;</span><span style="color:#b48ead;">char</span><span style="color:#c0c5ce;">&gt; = s.</span><span style="color:#96b5b4;">chars</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">collect</span><span style="color:#c0c5ce;">();
+    </span><span style="color:#b48ead;">for</span><span style="color:#c0c5ce;"> i in </span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">..chars.</span><span style="color:#96b5b4;">len</span><span style="color:#c0c5ce;">() {
+        </span><span style="color:#b48ead;">match</span><span style="color:#c0c5ce;"> chars[i] {
+            &#39;</span><span style="color:#a3be8c;">(</span><span style="color:#c0c5ce;">&#39; | &#39;</span><span style="color:#a3be8c;">)</span><span style="color:#c0c5ce;">&#39; | &#39;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&#39; | &#39;</span><span style="color:#a3be8c;">-</span><span style="color:#c0c5ce;">&#39; | &#39;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&#39; | &#39;</span><span style="color:#a3be8c;">/</span><span style="color:#c0c5ce;">&#39; =&gt; ret.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(String::from(chars[i])),
+            n </span><span style="color:#b48ead;">if</span><span style="color:#c0c5ce;"> n.</span><span style="color:#96b5b4;">is_numeric</span><span style="color:#c0c5ce;">() =&gt; {
+                num.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(n);
+            }
+            &#39; &#39; =&gt; {}
+            _ =&gt; panic!(),
+        }
+
+        </span><span style="color:#b48ead;">if </span><span style="color:#c0c5ce;">!num.</span><span style="color:#96b5b4;">is_empty</span><span style="color:#c0c5ce;">() &amp;&amp; i &lt; chars.</span><span style="color:#96b5b4;">len</span><span style="color:#c0c5ce;">() - </span><span style="color:#d08770;">1 </span><span style="color:#c0c5ce;">&amp;&amp; !chars[i + </span><span style="color:#d08770;">1</span><span style="color:#c0c5ce;">].</span><span style="color:#96b5b4;">is_numeric</span><span style="color:#c0c5ce;">() {
+            </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> n: String = num.</span><span style="color:#96b5b4;">iter</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">collect</span><span style="color:#c0c5ce;">();
+            ret.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(n);
+            num = Vec::new();
+        }
+    }
+
+    </span><span style="color:#b48ead;">if </span><span style="color:#c0c5ce;">!num.</span><span style="color:#96b5b4;">is_empty</span><span style="color:#c0c5ce;">() {
+        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> n: String = num.</span><span style="color:#96b5b4;">iter</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">collect</span><span style="color:#c0c5ce;">();
+        ret.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(n);
+    }
+
+    ret
+}
+
+</span><span style="color:#b48ead;">struct </span><span style="color:#c0c5ce;">Parser {
+    </span><span style="color:#bf616a;">tokens</span><span style="color:#c0c5ce;">: Vec&lt;String&gt;,
+    </span><span style="color:#bf616a;">idx</span><span style="color:#c0c5ce;">: </span><span style="color:#b48ead;">usize</span><span style="color:#c0c5ce;">,
+}
+
+</span><span style="color:#b48ead;">impl </span><span style="color:#c0c5ce;">Parser {
+    </span><span style="color:#b48ead;">pub fn </span><span style="color:#8fa1b3;">expr</span><span style="color:#c0c5ce;">(&amp;</span><span style="color:#b48ead;">mut </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">) -&gt; </span><span style="color:#b48ead;">i32 </span><span style="color:#c0c5ce;">{
+        </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> left = </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">term</span><span style="color:#c0c5ce;">();
+
+        </span><span style="color:#b48ead;">loop </span><span style="color:#c0c5ce;">{
+            </span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.idx &gt;= </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.tokens.</span><span style="color:#96b5b4;">len</span><span style="color:#c0c5ce;">() {
+                </span><span style="color:#b48ead;">break</span><span style="color:#c0c5ce;">;
+            }
+
+            </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> op = </span><span style="color:#b48ead;">match </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.tokens[</span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.idx].</span><span style="color:#96b5b4;">as_str</span><span style="color:#c0c5ce;">() {
+                &quot;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&quot; =&gt; &quot;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&quot;,
+                &quot;</span><span style="color:#a3be8c;">-</span><span style="color:#c0c5ce;">&quot; =&gt; &quot;</span><span style="color:#a3be8c;">-</span><span style="color:#c0c5ce;">&quot;,
+                _ =&gt; </span><span style="color:#b48ead;">break</span><span style="color:#c0c5ce;">,
+            };
+            </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">consume</span><span style="color:#c0c5ce;">();
+
+            </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> right = </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">term</span><span style="color:#c0c5ce;">();
+            left = </span><span style="color:#b48ead;">match</span><span style="color:#c0c5ce;"> op {
+                &quot;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&quot; =&gt; left + right,
+                &quot;</span><span style="color:#a3be8c;">-</span><span style="color:#c0c5ce;">&quot; =&gt; left - right,
+                _ =&gt; unreachable!(),
+            }
+        }
+
+        left
+    }
+
+    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">term</span><span style="color:#c0c5ce;">(&amp;</span><span style="color:#b48ead;">mut </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">) -&gt; </span><span style="color:#b48ead;">i32 </span><span style="color:#c0c5ce;">{
+        </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> left = </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">factor</span><span style="color:#c0c5ce;">();
+
+        </span><span style="color:#b48ead;">loop </span><span style="color:#c0c5ce;">{
+            </span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.idx &gt;= </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.tokens.</span><span style="color:#96b5b4;">len</span><span style="color:#c0c5ce;">() {
+                </span><span style="color:#b48ead;">break</span><span style="color:#c0c5ce;">;
+            }
+
+            </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> op = </span><span style="color:#b48ead;">match </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.tokens[</span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.idx].</span><span style="color:#96b5b4;">as_str</span><span style="color:#c0c5ce;">() {
+                &quot;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&quot; =&gt; &quot;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&quot;,
+                &quot;</span><span style="color:#a3be8c;">/</span><span style="color:#c0c5ce;">&quot; =&gt; &quot;</span><span style="color:#a3be8c;">/</span><span style="color:#c0c5ce;">&quot;,
+                _ =&gt; </span><span style="color:#b48ead;">break</span><span style="color:#c0c5ce;">,
+            };
+            </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">consume</span><span style="color:#c0c5ce;">();
+
+            </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> right = </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">factor</span><span style="color:#c0c5ce;">();
+            left = </span><span style="color:#b48ead;">match</span><span style="color:#c0c5ce;"> op {
+                &quot;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&quot; =&gt; left * right,
+                &quot;</span><span style="color:#a3be8c;">/</span><span style="color:#c0c5ce;">&quot; =&gt; left / right,
+                _ =&gt; unreachable!(),
+            }
+        }
+
+        left
+    }
+
+    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">factor</span><span style="color:#c0c5ce;">(&amp;</span><span style="color:#b48ead;">mut </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">) -&gt; </span><span style="color:#b48ead;">i32 </span><span style="color:#c0c5ce;">{
+        </span><span style="color:#b48ead;">match </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.tokens[</span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.idx].</span><span style="color:#96b5b4;">as_str</span><span style="color:#c0c5ce;">() {
+            &quot;</span><span style="color:#a3be8c;">(</span><span style="color:#c0c5ce;">&quot; =&gt; {
+                </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">consume</span><span style="color:#c0c5ce;">();
+                </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> ret = </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">expr</span><span style="color:#c0c5ce;">();
+
+                </span><span style="color:#b48ead;">match </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.tokens[</span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.idx].</span><span style="color:#96b5b4;">as_str</span><span style="color:#c0c5ce;">() {
+                    &quot;</span><span style="color:#a3be8c;">)</span><span style="color:#c0c5ce;">&quot; =&gt; {
+                        </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">consume</span><span style="color:#c0c5ce;">();
+                        </span><span style="color:#b48ead;">return</span><span style="color:#c0c5ce;"> ret;
+                    }
+                    _ =&gt; panic!(),
+                }
+            }
+            _ =&gt; </span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">number</span><span style="color:#c0c5ce;">(),
+        }
+    }
+
+    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">number</span><span style="color:#c0c5ce;">(&amp;</span><span style="color:#b48ead;">mut </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">) -&gt; </span><span style="color:#b48ead;">i32 </span><span style="color:#c0c5ce;">{
+        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> ret = </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.tokens[</span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.idx].parse::&lt;</span><span style="color:#b48ead;">i32</span><span style="color:#c0c5ce;">&gt;().</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">();
+        </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">consume</span><span style="color:#c0c5ce;">();
+        ret
+    }
+
+    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">consume</span><span style="color:#c0c5ce;">(&amp;</span><span style="color:#b48ead;">mut </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">) {
+        </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.idx += </span><span style="color:#d08770;">1</span><span style="color:#c0c5ce;">;
+    }
+}
+
+</span><span style="color:#b48ead;">mod </span><span style="color:#c0c5ce;">test {
+    </span><span style="color:#b48ead;">use super</span><span style="color:#c0c5ce;">::*;
+
+    #[</span><span style="color:#bf616a;">test</span><span style="color:#c0c5ce;">]
+    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">lexer_test</span><span style="color:#c0c5ce;">() {
+        assert_eq!(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">12 + 4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()), vec![&quot;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&quot;]);
+        assert_eq!(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">12 - 4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()), vec![&quot;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">-</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&quot;]);
+        assert_eq!(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">12 * 4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()), vec![&quot;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&quot;]);
+        assert_eq!(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">12 / 4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()), vec![&quot;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">/</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&quot;]);
+
+        assert_eq!(
+            </span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">(11 + 1) * 2</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()),
+            vec![&quot;</span><span style="color:#a3be8c;">(</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">11</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">1</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">)</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">2</span><span style="color:#c0c5ce;">&quot;]
+        );
+    }
+
+    #[</span><span style="color:#bf616a;">test</span><span style="color:#c0c5ce;">]
+    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">parser_test</span><span style="color:#c0c5ce;">() {
+        </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> parser = Parser {
+            tokens: vec![&quot;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(), &quot;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(), &quot;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()],
+            idx: </span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">,
+        };
+        assert_eq!(parser.</span><span style="color:#96b5b4;">expr</span><span style="color:#c0c5ce;">(), </span><span style="color:#d08770;">16</span><span style="color:#c0c5ce;">);
+
+        </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> parser = Parser {
+            tokens: vec![&quot;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(), &quot;</span><span style="color:#a3be8c;">-</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(), &quot;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()],
+            idx: </span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">,
+        };
+        assert_eq!(parser.</span><span style="color:#96b5b4;">expr</span><span style="color:#c0c5ce;">(), </span><span style="color:#d08770;">8</span><span style="color:#c0c5ce;">);
+
+        </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> parser = Parser {
+            tokens: vec![&quot;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(), &quot;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(), &quot;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()],
+            idx: </span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">,
+        };
+        assert_eq!(parser.</span><span style="color:#96b5b4;">expr</span><span style="color:#c0c5ce;">(), </span><span style="color:#d08770;">48</span><span style="color:#c0c5ce;">);
+
+        </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> parser = Parser {
+            tokens: vec![&quot;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(), &quot;</span><span style="color:#a3be8c;">/</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(), &quot;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()],
+            idx: </span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">,
+        };
+        assert_eq!(parser.</span><span style="color:#96b5b4;">expr</span><span style="color:#c0c5ce;">(), </span><span style="color:#d08770;">3</span><span style="color:#c0c5ce;">);
+
+        </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> parser = Parser {
+            tokens: vec![&quot;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(), &quot;</span><span style="color:#a3be8c;">/</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(), &quot;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()],
+            idx: </span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">,
+        };
+        assert_eq!(parser.</span><span style="color:#96b5b4;">expr</span><span style="color:#c0c5ce;">(), </span><span style="color:#d08770;">3</span><span style="color:#c0c5ce;">);
+
+        </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> parser = Parser {
+            tokens: vec![
+                &quot;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
+                &quot;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
+                &quot;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
+                &quot;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
+                &quot;</span><span style="color:#a3be8c;">3</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
+            ],
+            idx: </span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">,
+        };
+        assert_eq!(parser.</span><span style="color:#96b5b4;">expr</span><span style="color:#c0c5ce;">(), </span><span style="color:#d08770;">24</span><span style="color:#c0c5ce;">);
+
+        </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> parser = Parser {
+            tokens: vec![
+                &quot;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
+                &quot;</span><span style="color:#a3be8c;">-</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
+                &quot;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
+                &quot;</span><span style="color:#a3be8c;">-</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
+                &quot;</span><span style="color:#a3be8c;">3</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
+            ],
+            idx: </span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">,
+        };
+        assert_eq!(parser.</span><span style="color:#96b5b4;">expr</span><span style="color:#c0c5ce;">(), </span><span style="color:#d08770;">5</span><span style="color:#c0c5ce;">);
+
+        </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> parser = Parser {
+            tokens: vec![
+                &quot;</span><span style="color:#a3be8c;">(</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
+                &quot;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
+                &quot;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
+                &quot;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
+                &quot;</span><span style="color:#a3be8c;">)</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
+                &quot;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
+                &quot;</span><span style="color:#a3be8c;">3</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
+            ],
+            idx: </span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">,
+        };
+        assert_eq!(parser.</span><span style="color:#96b5b4;">expr</span><span style="color:#c0c5ce;">(), </span><span style="color:#d08770;">48</span><span style="color:#c0c5ce;">);
+    }
+}
+</span></code></pre>
+    </div>
+
+    
+    <div class="article-info">
+        
+        <div class="article-date">30 August 2021</div>
+        
+        <div class="article-taxonomies">
+            
+                <ul class="article-categories">
+                    
+                    <li><a href="https://mitaka.club/categories/programming/">programming</a></li>
+                    
+                </ul>
+            
+            
+                <ul class="article-tags">
+                    
+                    <li><a href="https://mitaka.club/tags/rust/">#rust</a></li>
+                    
+                </ul>
+            
+        </div>
+    </div>
+
+</article>
+
+
+        </main>
+        <footer>
+            <p>
+                © Mitaka Club 2021<br>
+                Powered by <a target="_blank" href="https://getzola.com/">Zola</a>, Theme <a target="_blank" href="https://github.com/zbrox/anpu-zola-theme">Anpu</a>.
+            </p>
+            <p>
+                
+                
+            </p>
+        </footer>
+    </div>
+</body>
+</html>
