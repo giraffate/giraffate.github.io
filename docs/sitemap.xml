@@ -4,6 +4,15 @@
         <loc>https://mitaka.club/</loc>
     </url>
     <url>
+        <loc>https://mitaka.club/categories/</loc>
+    </url>
+    <url>
+        <loc>https://mitaka.club/categories/diary/</loc>
+    </url>
+    <url>
+        <loc>https://mitaka.club/categories/programming/</loc>
+    </url>
+    <url>
         <loc>https://mitaka.club/introduce-ghrs/</loc>
         <lastmod>2021-02-02</lastmod>
     </url>
@@ -13,6 +22,15 @@
     </url>
     <url>
         <loc>https://mitaka.club/page/1/</loc>
+    </url>
+    <url>
+        <loc>https://mitaka.club/tags/</loc>
+    </url>
+    <url>
+        <loc>https://mitaka.club/tags/looking-back/</loc>
+    </url>
+    <url>
+        <loc>https://mitaka.club/tags/rust/</loc>
     </url>
     <url>
         <loc>https://mitaka.club/use-clippy-built-locally/</loc>
