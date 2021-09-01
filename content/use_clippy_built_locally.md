@@ -1,6 +1,9 @@
 +++
 title = "Use Clippy built on my local machine"
 date = 2021-03-09
+[taxonomies]
+tags = ["rust"]
+categories = ["programming"]
 +++
 
 This is a note about the way to use Clippy built on my local machine. It's helpful when checking the implementation of new lints, and finding some bugs and false positives.
