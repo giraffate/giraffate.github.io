@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="HandheldFriendly" content="True">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer-when-downgrade">
+
+    <title>四則演算を再帰下降で書く(TypeScript)</title>
+    <meta name="description" content="三鷹で活動しているクラブチームです">
+
+    <link rel="stylesheet" href="https:&#x2F;&#x2F;mitaka.club&#x2F;main.css">
+
+    
+        <link rel="alternate" type="application/rss+xml" title="RSS" href="https://mitaka.club/index.xml">
+    
+
+    
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:site" content="@giraffate" />
+<meta property="og:url" content="https:&#x2F;&#x2F;mitaka.club&#x2F;20210901&#x2F;" />
+<meta property="og:title" content="四則演算を再帰下降で書く(TypeScript)" />
+<meta property="og:description" content="" />
+<meta property="og:image" content="https:&#x2F;&#x2F;mitaka.club/images/giraffate.jpg" />
+
+</head>
+<body>
+    <a class="skip-main" href="#main">Skip to content</a>
+    <div class="container">
+        <header> 
+            <h1 class="site-header">
+                <a href="https:&#x2F;&#x2F;mitaka.club">Mitaka Club</a>
+            </h1>
+            <nav>
+                
+                
+                
+                <a  href="https:&#x2F;&#x2F;mitaka.club">Home</a>
+                
+                
+                <a  href="https:&#x2F;&#x2F;mitaka.club&#x2F;categories">Categories</a>
+                
+                
+                <a  href="https:&#x2F;&#x2F;mitaka.club&#x2F;tags">Tags</a>
+                
+                
+                <a  href="https:&#x2F;&#x2F;github.com&#x2F;giraffate">GitHub</a>
+                
+                
+                <a  href="https:&#x2F;&#x2F;twitter.com&#x2F;giraffate">Twitter</a>
+                
+                
+            </nav>
+        </header>
+        <main id="main" tabindex="-1">
+            
+
+<article class="post">
+    <header>
+        <h1>四則演算を再帰下降で書く(TypeScript)</h1>
+    </header>
+    <div class="content">
+        <p>TypeScript の練習がてら先日 Rust で書いた四則演算パーサーを TypeScript で書き直した。TypeScript はほぼ書いたことないしそもそも Node(ES6) もそれほどすらすら書けるわけではないのでもっといい書き方ありそう。</p>
+<p>テストをどう書くのかが定番を知らないので <code>assert</code> を使ったが、一つ fail すると後続処理は行われないようだったのでちょっと使い勝手が悪かった。</p>
+<p>エラーハンドリングも同様に定番を知らないので、参考に記載の記事を参考にしつつ戻り値に Union Type を使って Error オブジェクトを返すようにした。</p>
+<pre style="background-color:#2b303b;">
+<code class="language-ts" data-lang="ts"><span style="color:#b48ead;">import </span><span style="color:#bf616a;">assert </span><span style="color:#b48ead;">from </span><span style="color:#c0c5ce;">&quot;</span><span style="color:#a3be8c;">assert</span><span style="color:#c0c5ce;">&quot;;
+
+</span><span style="color:#b48ead;">class </span><span style="color:#ebcb8b;">SyntaxError </span><span style="color:#b48ead;">extends </span><span style="color:#ebcb8b;">Error </span><span style="color:#eff1f5;">{}
+</span><span style="color:#b48ead;">class </span><span style="color:#ebcb8b;">UnreachableError </span><span style="color:#b48ead;">extends </span><span style="color:#ebcb8b;">Error </span><span style="color:#eff1f5;">{}
+
+</span><span style="color:#b48ead;">function </span><span style="color:#8fa1b3;">lexer</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">s</span><span style="color:#c0c5ce;">: string): string[] | SyntaxError {
+  </span><span style="color:#b48ead;">let </span><span style="color:#bf616a;">ret </span><span style="color:#c0c5ce;">= [];
+  </span><span style="color:#b48ead;">let </span><span style="color:#bf616a;">num </span><span style="color:#c0c5ce;">= [];
+
+  </span><span style="color:#b48ead;">for </span><span style="color:#c0c5ce;">(</span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">c </span><span style="color:#c0c5ce;">of </span><span style="color:#bf616a;">s</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">split</span><span style="color:#c0c5ce;">(&#39;&#39;)) {
+    </span><span style="color:#b48ead;">if </span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">c </span><span style="color:#c0c5ce;">=== &#39;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&#39; || </span><span style="color:#bf616a;">c </span><span style="color:#c0c5ce;">=== &#39;</span><span style="color:#a3be8c;">-</span><span style="color:#c0c5ce;">&#39; || </span><span style="color:#bf616a;">c </span><span style="color:#c0c5ce;">=== &#39;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&#39; || </span><span style="color:#bf616a;">c </span><span style="color:#c0c5ce;">=== &#39;</span><span style="color:#a3be8c;">/</span><span style="color:#c0c5ce;">&#39; || </span><span style="color:#bf616a;">c </span><span style="color:#c0c5ce;">=== &#39;</span><span style="color:#a3be8c;">(</span><span style="color:#c0c5ce;">&#39; || </span><span style="color:#bf616a;">c </span><span style="color:#c0c5ce;">=== &#39;</span><span style="color:#a3be8c;">)</span><span style="color:#c0c5ce;">&#39;) {
+      </span><span style="color:#b48ead;">if </span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">num</span><span style="color:#c0c5ce;">.length !== </span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">) {
+        </span><span style="color:#bf616a;">ret</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">num</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">join</span><span style="color:#c0c5ce;">(&#39;&#39;));
+        </span><span style="color:#bf616a;">num </span><span style="color:#c0c5ce;">= [];
+      }
+      </span><span style="color:#bf616a;">ret</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">c</span><span style="color:#c0c5ce;">);
+    } </span><span style="color:#b48ead;">else if </span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">c </span><span style="color:#c0c5ce;">=== &#39; &#39;) {
+      </span><span style="color:#b48ead;">if </span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">num</span><span style="color:#c0c5ce;">.length !== </span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">) {
+        </span><span style="color:#bf616a;">ret</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">num</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">join</span><span style="color:#c0c5ce;">(&#39;&#39;));
+        </span><span style="color:#bf616a;">num </span><span style="color:#c0c5ce;">= [];
+      }
+    } </span><span style="color:#b48ead;">else if </span><span style="color:#c0c5ce;">(!</span><span style="color:#ebcb8b;">Number</span><span style="color:#c0c5ce;">.</span><span style="color:#8fa1b3;">isNaN</span><span style="color:#c0c5ce;">(</span><span style="color:#ebcb8b;">Number</span><span style="color:#c0c5ce;">.</span><span style="color:#8fa1b3;">parseFloat</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">c</span><span style="color:#c0c5ce;">))) {
+      </span><span style="color:#bf616a;">num</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">c</span><span style="color:#c0c5ce;">);
+      </span><span style="color:#b48ead;">continue</span><span style="color:#c0c5ce;">;
+    } </span><span style="color:#b48ead;">else </span><span style="color:#c0c5ce;">{
+      </span><span style="color:#b48ead;">return </span><span style="color:#c0c5ce;">new SyntaxError();
+    }
+  }
+
+  </span><span style="color:#b48ead;">if </span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">num</span><span style="color:#c0c5ce;">.length !== </span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">) {
+    </span><span style="color:#bf616a;">ret</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">num</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">join</span><span style="color:#c0c5ce;">(&#39;&#39;));
+  }
+
+  </span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">ret</span><span style="color:#c0c5ce;">;
+}
+
+</span><span style="color:#bf616a;">assert</span><span style="color:#c0c5ce;">.</span><span style="color:#8fa1b3;">deepEqual</span><span style="color:#c0c5ce;">(</span><span style="color:#8fa1b3;">lexer</span><span style="color:#c0c5ce;">(&#39;</span><span style="color:#a3be8c;">12 + 4</span><span style="color:#c0c5ce;">&#39;), [&#39;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&#39;]);
+</span><span style="color:#bf616a;">assert</span><span style="color:#c0c5ce;">.</span><span style="color:#8fa1b3;">deepEqual</span><span style="color:#c0c5ce;">(</span><span style="color:#8fa1b3;">lexer</span><span style="color:#c0c5ce;">(&#39;</span><span style="color:#a3be8c;">12 - 4</span><span style="color:#c0c5ce;">&#39;), [&#39;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">-</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&#39;]);
+</span><span style="color:#bf616a;">assert</span><span style="color:#c0c5ce;">.</span><span style="color:#8fa1b3;">deepEqual</span><span style="color:#c0c5ce;">(</span><span style="color:#8fa1b3;">lexer</span><span style="color:#c0c5ce;">(&#39;</span><span style="color:#a3be8c;">12 * 4</span><span style="color:#c0c5ce;">&#39;), [&#39;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&#39;]);
+</span><span style="color:#bf616a;">assert</span><span style="color:#c0c5ce;">.</span><span style="color:#8fa1b3;">deepEqual</span><span style="color:#c0c5ce;">(</span><span style="color:#8fa1b3;">lexer</span><span style="color:#c0c5ce;">(&#39;</span><span style="color:#a3be8c;">12 / 4</span><span style="color:#c0c5ce;">&#39;), [&#39;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">/</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&#39;]);
+</span><span style="color:#bf616a;">assert</span><span style="color:#c0c5ce;">.</span><span style="color:#8fa1b3;">deepEqual</span><span style="color:#c0c5ce;">(</span><span style="color:#8fa1b3;">lexer</span><span style="color:#c0c5ce;">(&#39;</span><span style="color:#a3be8c;">(11 + 1) * 4</span><span style="color:#c0c5ce;">&#39;), [&#39;</span><span style="color:#a3be8c;">(</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">11</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">1</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">)</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&#39;]);
+
+</span><span style="color:#b48ead;">class </span><span style="color:#ebcb8b;">Parser </span><span style="color:#eff1f5;">{
+  </span><span style="color:#bf616a;">idx</span><span style="color:#c0c5ce;">: </span><span style="color:#eff1f5;">number;
+  </span><span style="color:#bf616a;">tokens</span><span style="color:#c0c5ce;">: </span><span style="color:#eff1f5;">string[];
+
+  </span><span style="color:#b48ead;">constructor</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">tokens</span><span style="color:#c0c5ce;">: </span><span style="color:#eff1f5;">string[]</span><span style="color:#c0c5ce;">) </span><span style="color:#eff1f5;">{
+    </span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">idx </span><span style="color:#c0c5ce;">= </span><span style="color:#d08770;">0</span><span style="color:#eff1f5;">;
+    </span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">tokens </span><span style="color:#c0c5ce;">= </span><span style="color:#bf616a;">tokens</span><span style="color:#eff1f5;">;
+  }
+
+  </span><span style="color:#8fa1b3;">consume</span><span style="color:#c0c5ce;">() </span><span style="color:#eff1f5;">{
+    </span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">idx </span><span style="color:#c0c5ce;">+= </span><span style="color:#d08770;">1</span><span style="color:#eff1f5;">;
+  }
+
+  </span><span style="color:#8fa1b3;">number</span><span style="color:#c0c5ce;">(): </span><span style="color:#eff1f5;">number </span><span style="color:#c0c5ce;">| </span><span style="color:#eff1f5;">UnreachableError {
+    </span><span style="color:#b48ead;">let </span><span style="color:#bf616a;">num </span><span style="color:#c0c5ce;">= </span><span style="color:#ebcb8b;">Number</span><span style="color:#eff1f5;">.</span><span style="color:#8fa1b3;">parseFloat</span><span style="color:#eff1f5;">(</span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">tokens</span><span style="color:#eff1f5;">[</span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">idx</span><span style="color:#eff1f5;">]);
+    </span><span style="color:#b48ead;">if </span><span style="color:#eff1f5;">(</span><span style="color:#ebcb8b;">Number</span><span style="color:#eff1f5;">.</span><span style="color:#8fa1b3;">isNaN</span><span style="color:#eff1f5;">(</span><span style="color:#bf616a;">num</span><span style="color:#eff1f5;">)) {
+      </span><span style="color:#b48ead;">return </span><span style="color:#c0c5ce;">new </span><span style="color:#eff1f5;">UnreachableError();
+    } </span><span style="color:#b48ead;">else </span><span style="color:#eff1f5;">{
+      </span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#8fa1b3;">consume</span><span style="color:#eff1f5;">();
+      </span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">num</span><span style="color:#eff1f5;">;
+    }
+  }
+
+  </span><span style="color:#8fa1b3;">factor</span><span style="color:#c0c5ce;">(): </span><span style="color:#eff1f5;">number </span><span style="color:#c0c5ce;">| </span><span style="color:#eff1f5;">UnreachableError {
+    </span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">token </span><span style="color:#c0c5ce;">= </span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">tokens</span><span style="color:#eff1f5;">[</span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">idx</span><span style="color:#eff1f5;">];
+    </span><span style="color:#b48ead;">if </span><span style="color:#eff1f5;">(</span><span style="color:#c0c5ce;">!</span><span style="color:#ebcb8b;">Number</span><span style="color:#eff1f5;">.</span><span style="color:#8fa1b3;">isNaN</span><span style="color:#eff1f5;">(</span><span style="color:#ebcb8b;">Number</span><span style="color:#eff1f5;">.</span><span style="color:#8fa1b3;">parseFloat</span><span style="color:#eff1f5;">(</span><span style="color:#bf616a;">token</span><span style="color:#eff1f5;">))) {
+      </span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#8fa1b3;">number</span><span style="color:#eff1f5;">();
+    }
+
+    </span><span style="color:#b48ead;">if </span><span style="color:#eff1f5;">(</span><span style="color:#bf616a;">token </span><span style="color:#c0c5ce;">=== &#39;</span><span style="color:#a3be8c;">(</span><span style="color:#c0c5ce;">&#39;</span><span style="color:#eff1f5;">) {
+      </span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#8fa1b3;">consume</span><span style="color:#eff1f5;">();
+      </span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">expr </span><span style="color:#c0c5ce;">= </span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#8fa1b3;">expr</span><span style="color:#eff1f5;">();
+      </span><span style="color:#b48ead;">if </span><span style="color:#eff1f5;">(</span><span style="color:#bf616a;">expr </span><span style="color:#c0c5ce;">instanceof </span><span style="color:#eff1f5;">UnreachableError) {
+        </span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">expr</span><span style="color:#eff1f5;">;
+      }
+      
+      </span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">token </span><span style="color:#c0c5ce;">= </span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">tokens</span><span style="color:#eff1f5;">[</span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">idx</span><span style="color:#eff1f5;">];
+      </span><span style="color:#b48ead;">if </span><span style="color:#eff1f5;">(</span><span style="color:#bf616a;">token </span><span style="color:#c0c5ce;">=== &#39;</span><span style="color:#a3be8c;">)</span><span style="color:#c0c5ce;">&#39;</span><span style="color:#eff1f5;">) {
+        </span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#8fa1b3;">consume</span><span style="color:#eff1f5;">();
+        </span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">expr</span><span style="color:#eff1f5;">;
+      } </span><span style="color:#b48ead;">else </span><span style="color:#eff1f5;">{
+        </span><span style="color:#b48ead;">return </span><span style="color:#c0c5ce;">new </span><span style="color:#eff1f5;">UnreachableError();
+      }
+    }
+
+    </span><span style="color:#b48ead;">return </span><span style="color:#c0c5ce;">new </span><span style="color:#eff1f5;">UnreachableError();
+  }
+
+  </span><span style="color:#8fa1b3;">term</span><span style="color:#c0c5ce;">(): </span><span style="color:#eff1f5;">number </span><span style="color:#c0c5ce;">| </span><span style="color:#eff1f5;">UnreachableError {
+    </span><span style="color:#b48ead;">let </span><span style="color:#bf616a;">left </span><span style="color:#c0c5ce;">= </span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#8fa1b3;">factor</span><span style="color:#eff1f5;">();
+    </span><span style="color:#b48ead;">if </span><span style="color:#eff1f5;">(</span><span style="color:#bf616a;">left </span><span style="color:#c0c5ce;">instanceof </span><span style="color:#eff1f5;">UnreachableError) {
+      </span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">left</span><span style="color:#eff1f5;">;
+    }
+
+    </span><span style="color:#b48ead;">while </span><span style="color:#eff1f5;">(</span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">idx </span><span style="color:#c0c5ce;">&lt; </span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">tokens</span><span style="color:#eff1f5;">.length) {
+      </span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">op </span><span style="color:#c0c5ce;">= </span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">tokens</span><span style="color:#eff1f5;">[</span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">idx</span><span style="color:#eff1f5;">];
+      </span><span style="color:#b48ead;">if </span><span style="color:#eff1f5;">(</span><span style="color:#bf616a;">op </span><span style="color:#c0c5ce;">=== &#39;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&#39; || </span><span style="color:#bf616a;">op </span><span style="color:#c0c5ce;">=== &#39;</span><span style="color:#a3be8c;">/</span><span style="color:#c0c5ce;">&#39;</span><span style="color:#eff1f5;">) {
+        </span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#8fa1b3;">consume</span><span style="color:#eff1f5;">();
+      } </span><span style="color:#b48ead;">else </span><span style="color:#eff1f5;">{
+        </span><span style="color:#b48ead;">break
+      </span><span style="color:#eff1f5;">}
+
+      </span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">right </span><span style="color:#c0c5ce;">= </span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#8fa1b3;">factor</span><span style="color:#eff1f5;">();
+      </span><span style="color:#b48ead;">if </span><span style="color:#eff1f5;">(</span><span style="color:#bf616a;">right </span><span style="color:#c0c5ce;">instanceof </span><span style="color:#eff1f5;">UnreachableError) {
+        </span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">right</span><span style="color:#eff1f5;">;
+      }
+      </span><span style="color:#b48ead;">if </span><span style="color:#eff1f5;">(</span><span style="color:#bf616a;">op </span><span style="color:#c0c5ce;">=== &#39;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&#39;</span><span style="color:#eff1f5;">) {
+        </span><span style="color:#bf616a;">left </span><span style="color:#c0c5ce;">*= </span><span style="color:#bf616a;">right</span><span style="color:#eff1f5;">;
+      } </span><span style="color:#b48ead;">else if </span><span style="color:#eff1f5;">(</span><span style="color:#bf616a;">op </span><span style="color:#c0c5ce;">=== &#39;</span><span style="color:#a3be8c;">/</span><span style="color:#c0c5ce;">&#39;</span><span style="color:#eff1f5;">) {
+        </span><span style="color:#bf616a;">left </span><span style="color:#c0c5ce;">/= </span><span style="color:#bf616a;">right</span><span style="color:#eff1f5;">;
+      }
+    }
+
+    </span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">left</span><span style="color:#eff1f5;">;
+  }
+
+  </span><span style="color:#8fa1b3;">expr</span><span style="color:#c0c5ce;">(): </span><span style="color:#eff1f5;">number </span><span style="color:#c0c5ce;">| </span><span style="color:#eff1f5;">UnreachableError {
+    </span><span style="color:#b48ead;">let </span><span style="color:#bf616a;">left </span><span style="color:#c0c5ce;">= </span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#8fa1b3;">term</span><span style="color:#eff1f5;">();
+    </span><span style="color:#b48ead;">if </span><span style="color:#eff1f5;">(</span><span style="color:#bf616a;">left </span><span style="color:#c0c5ce;">instanceof </span><span style="color:#eff1f5;">UnreachableError) {
+      </span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">left</span><span style="color:#eff1f5;">;
+    }
+
+    </span><span style="color:#b48ead;">while </span><span style="color:#eff1f5;">(</span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">idx </span><span style="color:#c0c5ce;">&lt; </span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">tokens</span><span style="color:#eff1f5;">.length) {
+      </span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">op </span><span style="color:#c0c5ce;">= </span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">tokens</span><span style="color:#eff1f5;">[</span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">idx</span><span style="color:#eff1f5;">];
+      </span><span style="color:#b48ead;">if </span><span style="color:#eff1f5;">(</span><span style="color:#bf616a;">op </span><span style="color:#c0c5ce;">=== &#39;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&#39; || </span><span style="color:#bf616a;">op </span><span style="color:#c0c5ce;">=== &#39;</span><span style="color:#a3be8c;">-</span><span style="color:#c0c5ce;">&#39;</span><span style="color:#eff1f5;">) {
+        </span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#8fa1b3;">consume</span><span style="color:#eff1f5;">();
+      } </span><span style="color:#b48ead;">else </span><span style="color:#eff1f5;">{
+        </span><span style="color:#b48ead;">break</span><span style="color:#eff1f5;">;
+      }
+
+      </span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">right </span><span style="color:#c0c5ce;">= </span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#8fa1b3;">term</span><span style="color:#eff1f5;">();
+      </span><span style="color:#b48ead;">if </span><span style="color:#eff1f5;">(</span><span style="color:#bf616a;">right </span><span style="color:#c0c5ce;">instanceof </span><span style="color:#eff1f5;">UnreachableError) {
+        </span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">right</span><span style="color:#eff1f5;">;
+      }
+      </span><span style="color:#b48ead;">if </span><span style="color:#eff1f5;">(</span><span style="color:#bf616a;">op </span><span style="color:#c0c5ce;">=== &#39;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&#39;</span><span style="color:#eff1f5;">) {
+        </span><span style="color:#bf616a;">left </span><span style="color:#c0c5ce;">+= </span><span style="color:#bf616a;">right</span><span style="color:#eff1f5;">;
+      } </span><span style="color:#b48ead;">else if </span><span style="color:#eff1f5;">(</span><span style="color:#bf616a;">op </span><span style="color:#c0c5ce;">=== &#39;</span><span style="color:#a3be8c;">-</span><span style="color:#c0c5ce;">&#39;</span><span style="color:#eff1f5;">) {
+        </span><span style="color:#bf616a;">left </span><span style="color:#c0c5ce;">-= </span><span style="color:#bf616a;">right</span><span style="color:#eff1f5;">;
+      }
+    }
+
+    </span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">left</span><span style="color:#eff1f5;">;
+  }
+}
+
+</span><span style="color:#bf616a;">assert</span><span style="color:#c0c5ce;">.</span><span style="color:#8fa1b3;">equal</span><span style="color:#c0c5ce;">(new Parser([&#39;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&#39;]).</span><span style="color:#8fa1b3;">expr</span><span style="color:#c0c5ce;">(), </span><span style="color:#d08770;">16</span><span style="color:#c0c5ce;">);
+</span><span style="color:#bf616a;">assert</span><span style="color:#c0c5ce;">.</span><span style="color:#8fa1b3;">equal</span><span style="color:#c0c5ce;">(new Parser([&#39;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">-</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&#39;]).</span><span style="color:#8fa1b3;">expr</span><span style="color:#c0c5ce;">(), </span><span style="color:#d08770;">8</span><span style="color:#c0c5ce;">);
+</span><span style="color:#bf616a;">assert</span><span style="color:#c0c5ce;">.</span><span style="color:#8fa1b3;">equal</span><span style="color:#c0c5ce;">(new Parser([&#39;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&#39;]).</span><span style="color:#8fa1b3;">expr</span><span style="color:#c0c5ce;">(), </span><span style="color:#d08770;">48</span><span style="color:#c0c5ce;">);
+</span><span style="color:#bf616a;">assert</span><span style="color:#c0c5ce;">.</span><span style="color:#8fa1b3;">equal</span><span style="color:#c0c5ce;">(new Parser([&#39;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">/</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&#39;]).</span><span style="color:#8fa1b3;">expr</span><span style="color:#c0c5ce;">(), </span><span style="color:#d08770;">3</span><span style="color:#c0c5ce;">);
+</span><span style="color:#bf616a;">assert</span><span style="color:#c0c5ce;">.</span><span style="color:#8fa1b3;">equal</span><span style="color:#c0c5ce;">(new Parser([&#39;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">3</span><span style="color:#c0c5ce;">&#39;]).</span><span style="color:#8fa1b3;">expr</span><span style="color:#c0c5ce;">(), </span><span style="color:#d08770;">24</span><span style="color:#c0c5ce;">);
+</span><span style="color:#bf616a;">assert</span><span style="color:#c0c5ce;">.</span><span style="color:#8fa1b3;">equal</span><span style="color:#c0c5ce;">(new Parser([&#39;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">-</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">-</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">3</span><span style="color:#c0c5ce;">&#39;]).</span><span style="color:#8fa1b3;">expr</span><span style="color:#c0c5ce;">(), </span><span style="color:#d08770;">5</span><span style="color:#c0c5ce;">);
+</span><span style="color:#bf616a;">assert</span><span style="color:#c0c5ce;">.</span><span style="color:#8fa1b3;">equal</span><span style="color:#c0c5ce;">(new Parser([&#39;</span><span style="color:#a3be8c;">(</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">)</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">3</span><span style="color:#c0c5ce;">&#39;]).</span><span style="color:#8fa1b3;">expr</span><span style="color:#c0c5ce;">(), </span><span style="color:#d08770;">48</span><span style="color:#c0c5ce;">);
+</span></code></pre><h2 id="can-kao">参考</h2>
+<ul>
+<li><a href="https://nodejs.org/api/assert.html">Node.js assert</a></li>
+<li><a href="https://dev.classmethod.jp/articles/error-handling-practice-of-typescript/">TypeScriptの異常系表現のいい感じの落とし所</a></li>
+</ul>
+
+    </div>
+
+    
+    <div class="article-info">
+        
+        <div class="article-date"> 1 September 2021</div>
+        
+        <div class="article-taxonomies">
+            
+                <ul class="article-categories">
+                    
+                    <li><a href="https://mitaka.club/categories/programming/">programming</a></li>
+                    
+                </ul>
+            
+            
+                <ul class="article-tags">
+                    
+                    <li><a href="https://mitaka.club/tags/typescript/">#typescript</a></li>
+                    
+                </ul>
+            
+        </div>
+    </div>
+
+</article>
+
+
+        </main>
+        <footer>
+            <p>
+                © Mitaka Club 2021<br>
+                Powered by <a target="_blank" href="https://getzola.com/">Zola</a>, Theme <a target="_blank" href="https://github.com/zbrox/anpu-zola-theme">Anpu</a>.
+            </p>
+            <p>
+                
+                
+            </p>
+        </footer>
+    </div>
+</body>
+</html>

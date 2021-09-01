@@ -8,6 +8,10 @@
         <lastmod>2021-08-30</lastmod>
     </url>
     <url>
+        <loc>https://mitaka.club/20210901/</loc>
+        <lastmod>2021-09-01</lastmod>
+    </url>
+    <url>
         <loc>https://mitaka.club/categories/</loc>
     </url>
     <url>
@@ -35,6 +39,9 @@
     </url>
     <url>
         <loc>https://mitaka.club/tags/rust/</loc>
+    </url>
+    <url>
+        <loc>https://mitaka.club/tags/typescript/</loc>
     </url>
     <url>
         <loc>https://mitaka.club/use-clippy-built-locally/</loc>
