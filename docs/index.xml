@@ -7,7 +7,536 @@
         <generator>Zola</generator>
         <language>en</language>
         <atom:link href="https://mitaka.club/index.xml" rel="self" type="application/rss+xml"/>
-        <lastBuildDate>Wed, 15 Sep 2021 00:00:00 +0000</lastBuildDate>
+        <lastBuildDate>Tue, 28 Sep 2021 00:00:00 +0000</lastBuildDate>
+        <item>
+            <title>正規表現マッチャをDFAで書く</title>
+            <pubDate>Tue, 28 Sep 2021 00:00:00 +0000</pubDate>
+            <link>https://mitaka.club/20210928/</link>
+            <guid>https://mitaka.club/20210928/</guid>
+            <description>&lt;p&gt;引き続き &lt;a href=&quot;https:&#x2F;&#x2F;swtch.com&#x2F;%7Ersc&#x2F;regexp&#x2F;regexp1.html&quot;&gt;Regular Expression Matching Can Be Simple And Fast&lt;&#x2F;a&gt; を読んでいてようやく読み終わった。&lt;&#x2F;p&gt;
+&lt;p&gt;DFA は一度に一つの状態しか保持しないので NFA よりも実行するのに効率的であるとされる。ここで紹介されている Ken Thompson&#x27;s NFA simulation だと実質的に同等の DFA を実行しているに等しいが、現在保持している状態のリストを捨てているところが非効率なのでその状態のリストをキャッシュとしての DFA に保持しておくという実装が紹介されている。ここで NFA と DFA の対応だが、NFA における状態のリストが DFA における一つの状態に対応していることが以下の図からわかる（以下の図については &lt;a href=&quot;https:&#x2F;&#x2F;swtch.com&#x2F;%7Ersc&#x2F;regexp&#x2F;regexp1.html&quot;&gt;Regular Expression Matching Can Be Simple And Fast&lt;&#x2F;a&gt; より引用）。&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;..&#x2F;images&#x2F;20210928&#x2F;nfa.png&quot; alt=&quot;nfa&quot; &#x2F;&gt;
+&lt;img src=&quot;..&#x2F;images&#x2F;20210928&#x2F;dfa.png&quot; alt=&quot;dfa&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;後述するコードに出てくるが &lt;code&gt;Dstate&lt;&#x2F;code&gt; という構造体が DFA の状態に対応する。また、これは必要になったときに作成されキャッシュされ、入力に対する次の状態についても必要になったときに作成されキャッシュされる。&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;a href=&quot;..&#x2F;20210915&quot;&gt;前回&lt;&#x2F;a&gt;のコードに DFA の実装を追加した。サポートされている記法は同様で以下の通り。&lt;&#x2F;p&gt;
+&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;文字&lt;&#x2F;th&gt;&lt;th&gt;意味&lt;&#x2F;th&gt;&lt;&#x2F;tr&gt;&lt;&#x2F;thead&gt;&lt;tbody&gt;
+&lt;tr&gt;&lt;td&gt;c&lt;&#x2F;td&gt;&lt;td&gt;文字cそのもの&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;|&lt;&#x2F;td&gt;&lt;td&gt;または&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;+&lt;&#x2F;td&gt;&lt;td&gt;直前の文字の1回以上の反復&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;*&lt;&#x2F;td&gt;&lt;td&gt;直前の文字の0回以上の反復&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;?&lt;&#x2F;td&gt;&lt;td&gt;直前の文字の0 or 1回の表示&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;&#x2F;tbody&gt;&lt;&#x2F;table&gt;
+&lt;pre style=&quot;background-color:#2b303b;&quot;&gt;
+&lt;code class=&quot;language-rs&quot; data-lang=&quot;rs&quot;&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;use &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;std::cell::{Cell, RefCell};
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;use &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;std::collections::HashMap;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;use &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;std::rc::Rc;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;use &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;std::sync::atomic::{AtomicUsize, Ordering};
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;use &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;std::vec;
+
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;static &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;CNT&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: AtomicUsize = AtomicUsize::new(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;0&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;);
+
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;fn &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;main&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;() {
+    println!(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Hello, world!&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;);
+}
+
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;fn &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;lexer&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;s&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: &amp;amp;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;str&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;) -&amp;gt; Vec&amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;char&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;gt; {
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; out: Vec&amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;char&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;gt; = Vec::new();
+
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; s = s.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;to_string&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;();
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; iter = s.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;chars&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;peekable&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;();
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;while let &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;Some(c) = iter.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;next&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;() {
+        out.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;push&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(c);
+
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;if&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; c == &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39; || c == &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;|&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39; {
+            &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;continue&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;;
+        }
+
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;if let &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;Some(peek) = iter.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;peek&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;() {
+            &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;match&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; peek {
+                &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;|&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39; | &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;*&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39; | &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39; | &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;?&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39; | &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;)&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39; =&amp;gt; {}
+                _ =&amp;gt; out.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;push&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39;),
+            }
+        }
+    }
+
+    out
+}
+
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;fn &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;re2post&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;re&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Vec&amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;char&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;gt;) -&amp;gt; Vec&amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;char&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;gt; {
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;fn &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;precedence&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;c&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;char&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;) -&amp;gt; &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;usize &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;{
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;match&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; c {
+            &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39; | &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;)&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39; =&amp;gt; &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;1&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;,
+            &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;|&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39; =&amp;gt; &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;2&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;,
+            &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39; =&amp;gt; &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;3&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;&#x2F;&#x2F; concat
+            &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;*&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39; | &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39; | &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;?&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39; =&amp;gt; &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;4&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;,
+            _ =&amp;gt; &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;6&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;,
+        }
+    }
+
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; out: Vec&amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;char&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;gt; = Vec::new();
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; stack: Vec&amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;char&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;gt; = Vec::new();
+
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;for&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; c in re.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;iter&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;() {
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;match&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; c {
+            &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39; =&amp;gt; stack.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;push&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(*c),
+            &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;)&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39; =&amp;gt; {
+                &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;while&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; stack.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;last&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;is_some&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;() &amp;amp;&amp;amp; *stack.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;last&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;unwrap&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;() != &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39; {
+                    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; op = stack.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;pop&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;unwrap&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;();
+                    out.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;push&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(op);
+                }
+                &lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;&#x2F;&#x2F; pop &amp;#39;(&amp;#39;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;                stack.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;pop&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;();
+            }
+            &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39; | &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;*&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39; | &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39; | &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;?&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39; | &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;|&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39; =&amp;gt; {
+                &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;while let &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;Some(last) = stack.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;last&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;() {
+                    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;if &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;precedence&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(*last) &amp;gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;precedence&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(*c) {
+                        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; op = stack.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;pop&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;unwrap&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;();
+                        out.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;push&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(op);
+                    } &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;else &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;{
+                        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;break&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;;
+                    }
+                }
+                stack.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;push&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(*c);
+            }
+            _ =&amp;gt; out.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;push&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(*c),
+        }
+    }
+
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;while&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; stack.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;last&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;is_some&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;() {
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; op = stack.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;pop&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;unwrap&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;();
+        out.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;push&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(op);
+    }
+
+    out
+}
+
+#[&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;derive&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(Debug)]
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;struct &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;State {
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;kind&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: StateKind,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;out&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Rc&amp;lt;RefCell&amp;lt;Option&amp;lt;Rc&amp;lt;State&amp;gt;&amp;gt;&amp;gt;&amp;gt;,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;out1&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Rc&amp;lt;RefCell&amp;lt;Option&amp;lt;Rc&amp;lt;State&amp;gt;&amp;gt;&amp;gt;&amp;gt;,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;list_id&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Cell&amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;usize&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;gt;,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;id&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;usize&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;,
+}
+
+#[&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;derive&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(Debug)]
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;enum &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;StateKind {
+    Lit(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;char&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;),
+    Split,
+    Match,
+}
+
+#[&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;derive&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(Debug)]
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;struct &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;Fragment {
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;start&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Rc&amp;lt;State&amp;gt;,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;outs&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Vec&amp;lt;Rc&amp;lt;RefCell&amp;lt;Option&amp;lt;Rc&amp;lt;State&amp;gt;&amp;gt;&amp;gt;&amp;gt;&amp;gt;,
+}
+
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;fn &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;post2nfa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;post&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Vec&amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;char&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;gt;) -&amp;gt; Rc&amp;lt;State&amp;gt; {
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;fn &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;patch&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;outs&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Vec&amp;lt;Rc&amp;lt;RefCell&amp;lt;Option&amp;lt;Rc&amp;lt;State&amp;gt;&amp;gt;&amp;gt;&amp;gt;&amp;gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;start&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Rc&amp;lt;State&amp;gt;) {
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;for&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; out in outs {
+            *out.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;borrow_mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;() = Some(Rc::clone(&amp;amp;start));
+        }
+    }
+
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; stack: Vec&amp;lt;Fragment&amp;gt; = Vec::new();
+
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;for&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; c in post {
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;match&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; c {
+            &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39; =&amp;gt; {
+                &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; e2 = stack.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;pop&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;unwrap&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;();
+                &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; e1 = stack.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;pop&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;unwrap&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;();
+                &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;patch&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(e1.outs.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;clone&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(), Rc::clone(&amp;amp;e2.start));
+                stack.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;push&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(Fragment {
+                    start: e1.start,
+                    outs: e2.outs,
+                })
+            }
+            &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;|&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39; =&amp;gt; {
+                &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; e2 = stack.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;pop&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;unwrap&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;();
+                &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; e1 = stack.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;pop&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;unwrap&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;();
+                &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; s = State {
+                    kind: StateKind::Split,
+                    out: Rc::new(RefCell::new(Some(Rc::clone(&amp;amp;e1.start)))),
+                    out1: Rc::new(RefCell::new(Some(Rc::clone(&amp;amp;e2.start)))),
+                    list_id: Cell::new(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;0&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;),
+                    id: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;CNT&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;fetch_add&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;1&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;, Ordering::SeqCst),
+                };
+                stack.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;push&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(Fragment {
+                    start: Rc::new(s),
+                    outs: e1
+                        .outs
+                        .&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;iter&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;()
+                        .&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;chain&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(e2.outs.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;iter&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;())
+                        .&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;map&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(|&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;out&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;| Rc::clone(out))
+                        .collect::&amp;lt;Vec&amp;lt;_&amp;gt;&amp;gt;(),
+                })
+            }
+            &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;?&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39; =&amp;gt; {
+                &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; e = stack.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;pop&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;unwrap&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;();
+                &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; s = State {
+                    kind: StateKind::Split,
+                    out: Rc::new(RefCell::new(Some(Rc::clone(&amp;amp;e.start)))),
+                    out1: Rc::new(RefCell::new(None)),
+                    list_id: Cell::new(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;0&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;),
+                    id: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;CNT&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;fetch_add&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;1&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;, Ordering::SeqCst),
+                };
+                &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; outs = e
+                    .outs
+                    .&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;iter&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;()
+                    .&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;chain&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(vec![Rc::clone(&amp;amp;s.out1)].&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;iter&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;())
+                    .&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;map&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(|&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;out&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;| Rc::clone(out))
+                    .collect::&amp;lt;Vec&amp;lt;_&amp;gt;&amp;gt;();
+                stack.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;push&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(Fragment {
+                    start: Rc::new(s),
+                    outs,
+                })
+            }
+            &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;*&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39; =&amp;gt; {
+                &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; e = stack.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;pop&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;unwrap&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;();
+                &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; s = Rc::new(State {
+                    kind: StateKind::Split,
+                    out: Rc::new(RefCell::new(Some(Rc::clone(&amp;amp;e.start)))),
+                    out1: Rc::new(RefCell::new(None)),
+                    list_id: Cell::new(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;0&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;),
+                    id: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;CNT&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;fetch_add&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;1&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;, Ordering::SeqCst),
+                });
+                &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;patch&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(e.outs, Rc::clone(&amp;amp;s));
+                &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; out = Rc::clone(&amp;amp;s.out1);
+                stack.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;push&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(Fragment {
+                    start: s,
+                    outs: vec![out],
+                })
+            }
+            &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39; =&amp;gt; {
+                &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; e = stack.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;pop&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;unwrap&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;();
+                &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; s = Rc::new(State {
+                    kind: StateKind::Split,
+                    out: Rc::new(RefCell::new(Some(Rc::clone(&amp;amp;e.start)))),
+                    out1: Rc::new(RefCell::new(None)),
+                    list_id: Cell::new(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;0&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;),
+                    id: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;CNT&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;fetch_add&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;1&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;, Ordering::SeqCst),
+                });
+                &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;patch&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(e.outs, Rc::clone(&amp;amp;s));
+                &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; out = Rc::clone(&amp;amp;s.out1);
+                stack.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;push&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(Fragment {
+                    start: e.start,
+                    outs: vec![out],
+                })
+            }
+            _ =&amp;gt; {
+                &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; s = State {
+                    kind: StateKind::Lit(c),
+                    out: Rc::new(RefCell::new(None)),
+                    out1: Rc::new(RefCell::new(None)),
+                    list_id: Cell::new(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;0&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;),
+                    id: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;CNT&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;fetch_add&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;1&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;, Ordering::SeqCst),
+                };
+
+                &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; out = Rc::clone(&amp;amp;s.out);
+                &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; f = Fragment {
+                    start: Rc::new(s),
+                    outs: vec![out],
+                };
+                stack.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;push&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(f);
+            }
+        }
+    }
+
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; e = stack.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;pop&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;unwrap&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;();
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;patch&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(
+        e.outs,
+        Rc::new(State {
+            kind: StateKind::Match,
+            out: Rc::new(RefCell::new(None)),
+            out1: Rc::new(RefCell::new(None)),
+            list_id: Cell::new(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;0&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;),
+            id: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;CNT&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;fetch_add&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;1&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;, Ordering::SeqCst),
+        }),
+    );
+    e.start
+}
+
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;fn &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;matches&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;start&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Rc&amp;lt;State&amp;gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;s&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: &amp;amp;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;str&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;) -&amp;gt; &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;bool &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;{
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; chars = s.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;to_string&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;chars&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().collect::&amp;lt;Vec&amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;char&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;gt;&amp;gt;();
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; cnt: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;usize &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;1&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;;
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; clist: Vec&amp;lt;Rc&amp;lt;State&amp;gt;&amp;gt; = Vec::new();
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;add_state&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;amp;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; clist, &amp;amp;start, &amp;amp;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; cnt);
+    cnt += &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;1&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;;
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; nlist: Vec&amp;lt;Rc&amp;lt;State&amp;gt;&amp;gt; = Vec::new();
+
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; alldstates: HashMap&amp;lt;Vec&amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;usize&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;gt;, Rc&amp;lt;Dstate&amp;gt;&amp;gt; = HashMap::new();
+    alldstates.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;insert&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(
+        clist.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;iter&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;map&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(|&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;state&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;| state.id).collect::&amp;lt;Vec&amp;lt;_&amp;gt;&amp;gt;(),
+        Rc::new(Dstate::new(clist.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;clone&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;())),
+    );
+
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;for&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; c in chars {
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;&#x2F;&#x2F; ここでclistのキャッシュがあるか調べる。あればキャッシュのnextのlをclistに入れて後続処理をスキップ
+        &#x2F;&#x2F; State に id を持たせてそれで比較するかな
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;match&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; alldstates.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;get&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;amp;clist.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;iter&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;map&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(|&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;state&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;| state.id).collect::&amp;lt;Vec&amp;lt;_&amp;gt;&amp;gt;()) {
+            Some(dstate) &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;if&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; dstate.n.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;borrow&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;contains_key&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;amp;c) =&amp;gt; {
+                &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; tmp = dstate.n.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;borrow&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;();
+                &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; nextstate = tmp.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;get&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;amp;c).&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;unwrap&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;();
+                clist = nextstate.l.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;clone&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;();
+            }
+            Some(dstate) =&amp;gt; {
+                nlist.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;clear&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;();
+                &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;step&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;amp;clist, &amp;amp;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; nlist, c, &amp;amp;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; cnt);
+                dstate
+                    .n
+                    .&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;borrow_mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;()
+                    .&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;insert&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(c, Rc::new(Dstate::new(nlist.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;clone&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;())));
+                std::mem::swap(&amp;amp;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; clist, &amp;amp;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; nlist);
+            }
+            None =&amp;gt; {
+                nlist.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;clear&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;();
+                &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;step&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;amp;clist, &amp;amp;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; nlist, c, &amp;amp;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; cnt);
+                &lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;&#x2F;&#x2F; ここでclistを元にDstate作る
+                &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; d = Dstate::new(clist.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;clone&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;());
+                d.n.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;borrow_mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;()
+                    .&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;insert&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(c, Rc::new(Dstate::new(nlist.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;clone&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;())));
+                &lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;&#x2F;&#x2F; 上で作ったDstateをキャッシュする
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;                alldstates.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;insert&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(
+                    clist.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;iter&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;map&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(|&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;state&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;| state.id).collect::&amp;lt;Vec&amp;lt;_&amp;gt;&amp;gt;(),
+                    Rc::new(d),
+                );
+                std::mem::swap(&amp;amp;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; clist, &amp;amp;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; nlist);
+            }
+        };
+    }
+
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;is_match&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;amp;clist)
+}
+
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;fn &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;is_match&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;nlist&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: &amp;amp;[Rc&amp;lt;State&amp;gt;]) -&amp;gt; &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;bool &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;{
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;for&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; state in nlist {
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;if let &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;StateKind::Match = state.kind {
+            &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;return &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;true&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;;
+        }
+    }
+
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;false
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;}
+
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;fn &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;step&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;clist&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: &amp;amp;[Rc&amp;lt;State&amp;gt;], &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;nlist&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: &amp;amp;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;mut &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;Vec&amp;lt;Rc&amp;lt;State&amp;gt;&amp;gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;c&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;char&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;cnt&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: &amp;amp;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;mut usize&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;) {
+    *cnt += &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;1&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;;
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;for&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; state in clist {
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;match&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; state.kind {
+            StateKind::Lit(lit) &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;if&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; lit == c =&amp;gt; {
+                &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; s = Rc::clone(state);
+                &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;add_state&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(nlist, s.out.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;borrow_mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;as_ref&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;unwrap&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(), cnt);
+            }
+            _ =&amp;gt; {}
+        }
+    }
+}
+
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;fn &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;add_state&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;list&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: &amp;amp;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;mut &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;Vec&amp;lt;Rc&amp;lt;State&amp;gt;&amp;gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;state&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: &amp;amp;Rc&amp;lt;State&amp;gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;cnt&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: &amp;amp;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;mut usize&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;) {
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;if&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; state.list_id.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;get&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;() == *cnt {
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;return&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;;
+    }
+
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;if let &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;StateKind::Split = state.kind {
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;add_state&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(list, state.out.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;borrow_mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;as_ref&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;unwrap&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(), cnt);
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;add_state&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(list, state.out1.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;borrow_mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;as_ref&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;unwrap&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(), cnt);
+    }
+
+    list.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;push&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(Rc::clone(state));
+}
+
+#[&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;derive&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(Debug)]
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;struct &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;Dstate {
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;l&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Vec&amp;lt;Rc&amp;lt;State&amp;gt;&amp;gt;,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;n&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: RefCell&amp;lt;HashMap&amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;char&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;, Rc&amp;lt;Dstate&amp;gt;&amp;gt;&amp;gt;,
+}
+
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;impl &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;Dstate {
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;fn &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;new&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;s&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Vec&amp;lt;Rc&amp;lt;State&amp;gt;&amp;gt;) -&amp;gt; Dstate {
+        Dstate {
+            l: s,
+            n: RefCell::new(HashMap::new()),
+        }
+    }
+}
+
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;mod &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;test {
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;use super&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;::*;
+
+    #[&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;test&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;]
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;fn &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;lexer_test&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;() {
+        assert_eq!(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;lexer&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;abc&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;).&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;iter&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().collect::&amp;lt;String&amp;gt;(), &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a.b.c&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;);
+        assert_eq!(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;lexer&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;ab|a&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;).&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;iter&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().collect::&amp;lt;String&amp;gt;(), &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a.b|a&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;);
+        assert_eq!(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;lexer&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;ab+c&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;).&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;iter&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().collect::&amp;lt;String&amp;gt;(), &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a.b+.c&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;);
+        assert_eq!(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;lexer&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a(bb)+a&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;).&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;iter&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().collect::&amp;lt;String&amp;gt;(), &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a.(b.b)+.a&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;);
+    }
+
+    #[&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;test&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;]
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;fn &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;re2postfix_test&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;() {
+        assert_eq!(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;re2post&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;lexer&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;abc&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;)).&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;iter&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().collect::&amp;lt;String&amp;gt;(), &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;ab.c.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;);
+        assert_eq!(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;re2post&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;lexer&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;ab|a&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;)).&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;iter&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().collect::&amp;lt;String&amp;gt;(), &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;ab.a|&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;);
+        assert_eq!(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;re2post&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;lexer&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;ab+c&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;)).&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;iter&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().collect::&amp;lt;String&amp;gt;(), &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;ab+.c.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;);
+        assert_eq!(
+            &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;re2post&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;lexer&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a(bb)+a&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;)).&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;iter&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().collect::&amp;lt;String&amp;gt;(),
+            &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;abb.+.a.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;
+        );
+    }
+
+    #[&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;test&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;]
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;fn &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;post2nfa_test&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;() {
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; start = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;post2nfa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(vec![&amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39;]);
+        assert!(matches!(start.kind, StateKind::Lit(&amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39;)));
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; out = Rc::clone(&amp;amp;start.out);
+        assert!(matches!(
+            out.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;borrow_mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;as_ref&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;unwrap&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().kind,
+            StateKind::Match
+        ));
+
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; start = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;post2nfa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(vec![&amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39;, &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;b&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39;, &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39;]);
+        assert!(matches!(start.kind, StateKind::Lit(&amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39;)));
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; out = Rc::clone(&amp;amp;start.out);
+        assert!(matches!(
+            out.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;borrow_mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;as_ref&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;unwrap&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().kind,
+            StateKind::Lit(&amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;b&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39;)
+        ));
+
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; start = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;post2nfa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(vec![&amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39;, &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;b&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39;, &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;|&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39;]);
+        assert!(matches!(start.kind, StateKind::Split));
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; out = Rc::clone(&amp;amp;start.out);
+        assert!(matches!(
+            out.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;borrow_mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;as_ref&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;unwrap&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().kind,
+            StateKind::Lit(&amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39;)
+        ));
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; out1 = Rc::clone(&amp;amp;start.out1);
+        assert!(matches!(
+            out1.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;borrow_mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;as_ref&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;unwrap&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().kind,
+            StateKind::Lit(&amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;b&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39;)
+        ));
+
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; start = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;post2nfa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(vec![&amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39;, &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;?&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39;]);
+        assert!(matches!(start.kind, StateKind::Split));
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; out = Rc::clone(&amp;amp;start.out);
+        assert!(matches!(
+            out.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;borrow_mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;as_ref&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;unwrap&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().kind,
+            StateKind::Lit(&amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39;)
+        ));
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; out1 = Rc::clone(&amp;amp;start.out1);
+        assert!(matches!(
+            out1.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;borrow_mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;as_ref&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;unwrap&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().kind,
+            StateKind::Match
+        ));
+
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; start = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;post2nfa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(vec![&amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39;, &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;*&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39;]);
+        assert!(matches!(start.kind, StateKind::Split));
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; out = Rc::clone(&amp;amp;start.out);
+        assert!(matches!(
+            out.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;borrow_mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;as_ref&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;unwrap&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().kind,
+            StateKind::Lit(&amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39;)
+        ));
+        assert!(matches!(
+            out.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;borrow_mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;()
+                .&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;as_ref&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;()
+                .&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;unwrap&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;()
+                .out
+                .&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;borrow_mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;()
+                .&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;as_ref&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;()
+                .&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;unwrap&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;()
+                .kind,
+            StateKind::Split,
+        ));
+        assert!(out
+            .&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;borrow_mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;()
+            .&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;as_ref&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;()
+            .&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;unwrap&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;()
+            .out1
+            .&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;borrow_mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;()
+            .&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;is_none&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(),);
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; out1 = Rc::clone(&amp;amp;start.out1);
+        assert!(matches!(
+            out1.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;borrow_mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;as_ref&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;unwrap&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().kind,
+            StateKind::Match
+        ));
+
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; start = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;post2nfa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(vec![&amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39;, &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39;]);
+        assert!(matches!(start.kind, StateKind::Lit(&amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39;)));
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; out = Rc::clone(&amp;amp;start.out);
+        assert!(matches!(
+            out.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;borrow_mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;as_ref&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;unwrap&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;().kind,
+            StateKind::Split,
+        ));
+        assert!(matches!(
+            out.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;borrow_mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;()
+                .&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;as_ref&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;()
+                .&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;unwrap&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;()
+                .out
+                .&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;borrow_mut&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;()
+                .&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;as_ref&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;()
+                .&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;unwrap&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;()
+                .kind,
+            StateKind::Lit(&amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;#39;),
+        ));
+    }
+
+    #[&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;test&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;]
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;fn &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;matches_test&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;() {
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; start = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;post2nfa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;re2post&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;lexer&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;)));
+        assert!(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;matches&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(start, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;));
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; start = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;post2nfa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;re2post&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;lexer&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;)));
+        assert!(!&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;matches&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(start, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;ab&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;));
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; start = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;post2nfa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;re2post&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;lexer&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;)));
+        assert!(!&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;matches&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(start, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;b&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;));
+
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; start = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;post2nfa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;re2post&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;lexer&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;ab&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;)));
+        assert!(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;matches&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(start, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;ab&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;));
+
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; start = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;post2nfa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;re2post&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;lexer&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a|b&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;)));
+        assert!(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;matches&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(start, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;));
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; start = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;post2nfa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;re2post&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;lexer&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a|b&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;)));
+        assert!(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;matches&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(start, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;b&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;));
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; start = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;post2nfa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;re2post&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;lexer&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a|b&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;)));
+        assert!(!&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;matches&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(start, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;c&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;));
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; start = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;post2nfa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;re2post&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;lexer&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;abcd|bc?da&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;)));
+        assert!(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;matches&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(start, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;abcd&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;));
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; start = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;post2nfa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;re2post&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;lexer&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;abcd|bc?da&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;)));
+        assert!(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;matches&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(start, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;bcda&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;));
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; start = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;post2nfa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;re2post&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;lexer&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;abcd|bc?da&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;)));
+        assert!(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;matches&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(start, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;bda&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;));
+
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; start = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;post2nfa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;re2post&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;lexer&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a?&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;)));
+        assert!(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;matches&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(start, &amp;quot;&amp;quot;));
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; start = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;post2nfa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;re2post&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;lexer&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a?&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;)));
+        assert!(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;matches&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(start, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;));
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; start = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;post2nfa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;re2post&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;lexer&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a?a&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;)));
+        assert!(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;matches&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(start, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;));
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; start = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;post2nfa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;re2post&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;lexer&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a?a&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;)));
+        assert!(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;matches&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(start, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;aa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;));
+
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; start = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;post2nfa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;re2post&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;lexer&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a*&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;)));
+        assert!(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;matches&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(start, &amp;quot;&amp;quot;));
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; start = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;post2nfa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;re2post&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;lexer&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a*&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;)));
+        assert!(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;matches&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(start, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;));
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; start = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;post2nfa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;re2post&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;lexer&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a*&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;)));
+        assert!(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;matches&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(start, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;aaaaaaaa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;));
+
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; start = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;post2nfa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;re2post&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;lexer&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;)));
+        assert!(!&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;matches&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(start, &amp;quot;&amp;quot;));
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; start = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;post2nfa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;re2post&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;lexer&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;)));
+        assert!(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;matches&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(start, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;));
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; start = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;post2nfa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;re2post&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;lexer&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;)));
+        assert!(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;matches&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(start, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;aaaaaaaa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;));
+
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; start = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;post2nfa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;re2post&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;lexer&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a?a?a?aaa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;)));
+        assert!(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;matches&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(start, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;aaa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;));
+        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; start = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;post2nfa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;re2post&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;lexer&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;a?a?a?aaa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;)));
+        assert!(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;matches&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;(start, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;aaaaaa&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;&amp;quot;));
+    }
+}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;&lt;h2 id=&quot;can-kao&quot;&gt;参考&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;swtch.com&#x2F;%7Ersc&#x2F;regexp&#x2F;regexp1.html&quot;&gt;Regular Expression Matching Can Be Simple And Fast&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+</description>
+        </item>
         <item>
             <title>正規表現マッチャをNFAで書く</title>
             <pubDate>Wed, 15 Sep 2021 00:00:00 +0000</pubDate>
