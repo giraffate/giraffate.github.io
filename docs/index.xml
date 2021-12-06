@@ -7,7 +7,271 @@
         <generator>Zola</generator>
         <language>en</language>
         <atom:link href="https://mitaka.club/index.xml" rel="self" type="application/rss+xml"/>
-        <lastBuildDate>Tue, 28 Sep 2021 00:00:00 +0000</lastBuildDate>
+        <lastBuildDate>Tue, 07 Dec 2021 00:00:00 +0000</lastBuildDate>
+        <item>
+            <title>Rust AST 入門</title>
+            <pubDate>Tue, 07 Dec 2021 00:00:00 +0000</pubDate>
+            <link>https://mitaka.club/20211207/</link>
+            <guid>https://mitaka.club/20211207/</guid>
+            <description>&lt;p&gt;これは、簡単な Rust の AST をざっと読めるようになる、もしくは該当のドキュメントを読めるようになる、といったことを目的としたものである。入門といっても網羅的なものではなく、雰囲気を掴んでほしいという意味合いで書いたものであって細かいところまでは説明しないつもりである。なお Rust には型などより多くの情報も含む &lt;a href=&quot;https:&#x2F;&#x2F;rustc-dev-guide.rust-lang.org&#x2F;hir.html&quot;&gt;&lt;code&gt;HIR&lt;&#x2F;code&gt;&lt;&#x2F;a&gt; などいくつかの AST があるが、ここではコンパイル時に最初に作られる &lt;a href=&quot;https:&#x2F;&#x2F;rustc-dev-guide.rust-lang.org&#x2F;syntax-intro.html&quot;&gt;&lt;code&gt;AST&lt;&#x2F;code&gt;&lt;&#x2F;a&gt; についてのみふれる。&lt;&#x2F;p&gt;
+&lt;p&gt;プログラミング言語で一般的に述べられる AST 自体についてはここでは説明しないので他を参照するとよい。有用そうなもののリンクは以下の通りである。&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;www.twilio.com&#x2F;blog&#x2F;abstract-syntax-trees&quot;&gt;ASTs - What are they and how to use them&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;craftinginterpreters.com&#x2F;&quot;&gt;Crafting Interpreters&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;また、AST を確認するというと &lt;a href=&quot;https:&#x2F;&#x2F;astexplorer.net&#x2F;&quot;&gt;AST explorer&lt;&#x2F;a&gt; も有用だが、 AST explorer では &lt;a href=&quot;https:&#x2F;&#x2F;crates.io&#x2F;crates&#x2F;syn&quot;&gt;syn&lt;&#x2F;a&gt; が使われているようで、自分はこれをさわったことがないのでここではふれない。似たようなものだとは思うが。&lt;&#x2F;p&gt;
+&lt;p&gt;これより以下では全て下記バージョンで確認をしているが、参照先のドキュメントは nightly のもので変わりうることがあるのでそこはごめんなさいということで。&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;&quot;&gt;
+&lt;code&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;rustc -V
+rustc 1.59.0-nightly (efec54529 2021-12-04)
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;&lt;h2 id=&quot;ast-wojian-temiyou&quot;&gt;AST を見てみよう&lt;&#x2F;h2&gt;
+&lt;p&gt;ここでは Rust で生成される AST をどうやって確認するかを説明する。&lt;&#x2F;p&gt;
+&lt;p&gt;サンプルコードとして以下を考える。&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;&quot;&gt;
+&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;fn &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;main&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;() {
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt; x = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;5&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;;
+}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;rustc には unstable compiler option というのがあって、これは &lt;code&gt;rustc --help&lt;&#x2F;code&gt; で確認できるのだが、unstable compiler option を &lt;code&gt;rustc -Z help&lt;&#x2F;code&gt; でさらに確認すると &lt;code&gt;unpretty&lt;&#x2F;code&gt; というオプションがあることがわかる。&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;&quot;&gt;
+&lt;code&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;    (snip)
+    -Z                                unpretty=val -- present the input source, unstable (and less-pretty) variants;
+        `normal`, `identified`,
+        `expanded`, `expanded,identified`,
+        `expanded,hygiene` (with internal representations),
+        `everybody_loops` (all function bodies replaced with `loop {}`),
+        `ast-tree` (raw AST before expansion),
+        `ast-tree,expanded` (raw AST after expansion),
+        `hir` (the HIR), `hir,identified`,
+        `hir,typed` (HIR with types for each node),
+        `hir-tree` (dump the raw HIR),
+        `mir` (the MIR), or `mir-cfg` (graphviz formatted MIR)
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;ここで上記のサンプルコードに対して &lt;code&gt;rustc -Zunpretty=ast-tree src&#x2F;main.rs&lt;&#x2F;code&gt; とコマンドを実行することでで以下のような AST が得られる。&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;&quot;&gt;
+&lt;code&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;Crate {
+    attrs: [],
+    items: [
+        Item {
+            attrs: [],
+            id: NodeId(4294967040),
+            span: src&#x2F;main.rs:1:1: 3:2 (#0),
+            vis: Visibility {
+                kind: Inherited,
+                span: no-location (#0),
+                tokens: None,
+            },
+            ident: main#0,
+            kind: Fn(
+                Fn {
+                    defaultness: Final,
+                    generics: Generics {
+                        params: [],
+                        where_clause: WhereClause {
+                            has_where_token: false,
+                            predicates: [],
+                            span: src&#x2F;main.rs:1:10: 1:10 (#0),
+                        },
+                        span: src&#x2F;main.rs:1:8: 1:8 (#0),
+                    },
+                    sig: FnSig {
+                        header: FnHeader {
+                            unsafety: No,
+                            asyncness: No,
+                            constness: No,
+                            ext: None,
+                        },
+                        decl: FnDecl {
+                            inputs: [],
+                            output: Default(
+                                src&#x2F;main.rs:1:11: 1:11 (#0),
+                            ),
+                        },
+                        span: src&#x2F;main.rs:1:1: 1:10 (#0),
+                    },
+                    body: Some(
+                        Block {
+                            stmts: [
+                                Stmt {
+                                    id: NodeId(4294967040),
+                                    kind: Local(
+                                        Local {
+                                            id: NodeId(4294967040),
+                                            pat: Pat {
+                                                id: NodeId(4294967040),
+                                                kind: Ident(
+                                                    ByValue(
+                                                        Not,
+                                                    ),
+                                                    x#0,
+                                                    None,
+                                                ),
+                                                span: src&#x2F;main.rs:2:9: 2:10 (#0),
+                                                tokens: None,
+                                            },
+                                            ty: None,
+                                            kind: Init(
+                                                Expr {
+                                                    id: NodeId(4294967040),
+                                                    kind: Lit(
+                                                        Lit {
+                                                            token: Lit {
+                                                                kind: Integer,
+                                                                symbol: &amp;quot;5&amp;quot;,
+                                                                suffix: None,
+                                                            },
+                                                            kind: Int(
+                                                                5,
+                                                                Unsuffixed,
+                                                            ),
+                                                            span: src&#x2F;main.rs:2:13: 2:14 (#0),
+                                                        },
+                                                    ),
+                                                    span: src&#x2F;main.rs:2:13: 2:14 (#0),
+                                                    attrs: ThinVec(
+                                                        None,
+                                                    ),
+                                                    tokens: None,
+                                                },
+                                            ),
+                                            span: src&#x2F;main.rs:2:5: 2:15 (#0),
+                                            attrs: ThinVec(
+                                                None,
+                                            ),
+                                            tokens: None,
+                                        },
+                                    ),
+                                    span: src&#x2F;main.rs:2:5: 2:15 (#0),
+                                },
+                            ],
+                            id: NodeId(4294967040),
+                            rules: Default,
+                            span: src&#x2F;main.rs:1:11: 3:2 (#0),
+                            tokens: None,
+                            could_be_bare_literal: false,
+                        },
+                    ),
+                },
+            ),
+            tokens: None,
+        },
+    ],
+    span: src&#x2F;main.rs:1:1: 3:2 (#0),
+    is_placeholder: None,
+}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;&lt;h2 id=&quot;yi-tong-rijian-teikou&quot;&gt;一通り見ていこう&lt;&#x2F;h2&gt;
+&lt;p&gt;上記で AST を確認できるようになった。ここでは生成された AST とドキュメントを照らし合わせながら読んでいく方法の一例について説明する。ただし、細かいところまでは説明しない。&lt;&#x2F;p&gt;
+&lt;p&gt;流れとしては、トップレベルの &lt;code&gt;Crate&lt;&#x2F;code&gt; から読んでいき、実際のコードにある &lt;code&gt;fn main {}&lt;&#x2F;code&gt; や &lt;code&gt;let x = 5;&lt;&#x2F;code&gt; が AST 上のどこに現れるかについて通して見ていくことにする。&lt;&#x2F;p&gt;
+&lt;p&gt;まずはトップレベルの &lt;a href=&quot;https:&#x2F;&#x2F;doc.rust-lang.org&#x2F;nightly&#x2F;nightly-rustc&#x2F;rustc_ast&#x2F;ast&#x2F;struct.Crate.html&quot;&gt;&lt;code&gt;Crate&lt;&#x2F;code&gt;&lt;&#x2F;a&gt; について見てみよう。定義は以下の通りである。&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;&quot;&gt;
+&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub struct &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;Crate {
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;attrs&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Vec&amp;lt;Attribute&amp;gt;,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;items&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Vec&amp;lt;P&amp;lt;Item&amp;gt;&amp;gt;,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;span&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Span,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;is_placeholder&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Option&amp;lt;NodeId&amp;gt;,
+}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;これは現在作業している crate を示している。いろいろあるが全て見るのは面倒なので重要なところだけ確認したく &lt;code&gt;items&lt;&#x2F;code&gt; に注目する。ということで、次に &lt;a href=&quot;https:&#x2F;&#x2F;doc.rust-lang.org&#x2F;nightly&#x2F;nightly-rustc&#x2F;rustc_ast&#x2F;ast&#x2F;struct.Item.html&quot;&gt;&lt;code&gt;Item&lt;&#x2F;code&gt;&lt;&#x2F;a&gt; を見てみよう。&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;&quot;&gt;
+&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub struct &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;Item&amp;lt;K = ItemKind&amp;gt; {
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;attrs&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Vec&amp;lt;Attribute&amp;gt;,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;id&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: NodeId,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;span&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Span,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;vis&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Visibility,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;ident&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Ident,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;kind&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: K,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;tokens&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Option&amp;lt;LazyTokenStream&amp;gt;,
+}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;&lt;code&gt;Item&lt;&#x2F;code&gt; は &lt;code&gt;Crate&lt;&#x2F;code&gt; を構成する要素であり、 &lt;code&gt;mod&lt;&#x2F;code&gt;, &lt;code&gt;use&lt;&#x2F;code&gt;, &lt;code&gt;fn&lt;&#x2F;code&gt; といった宣言などが &lt;code&gt;Item&lt;&#x2F;code&gt; となる。詳細な説明については &lt;a href=&quot;https:&#x2F;&#x2F;doc.rust-lang.org&#x2F;reference&#x2F;items.html&quot;&gt;https:&#x2F;&#x2F;doc.rust-lang.org&#x2F;reference&#x2F;items.html&lt;&#x2F;a&gt; を見てもらいたい。&lt;&#x2F;p&gt;
+&lt;p&gt;ここでこのサンプルコードにおける AST で &lt;code&gt;Crate&lt;&#x2F;code&gt; にただ一つ含まれる &lt;code&gt;Item&lt;&#x2F;code&gt; の種類が何か知りたいので &lt;code&gt;kind&lt;&#x2F;code&gt; を確認する。&lt;code&gt;kind&lt;&#x2F;code&gt; は &lt;a href=&quot;https:&#x2F;&#x2F;doc.rust-lang.org&#x2F;nightly&#x2F;nightly-rustc&#x2F;rustc_ast&#x2F;ast&#x2F;enum.ItemKind.html&quot;&gt;ItemKind&lt;&#x2F;a&gt; として定義されており、今回は &lt;code&gt;fn main&lt;&#x2F;code&gt; が唯一コードに含まれるので関数 &lt;code&gt;Fn(Box&amp;lt;Fn&amp;gt;)&lt;&#x2F;code&gt; である。&lt;&#x2F;p&gt;
+&lt;p&gt;次に &lt;a href=&quot;https:&#x2F;&#x2F;doc.rust-lang.org&#x2F;nightly&#x2F;nightly-rustc&#x2F;rustc_ast&#x2F;ast&#x2F;struct.Fn.html&quot;&gt;&lt;code&gt;Fn&lt;&#x2F;code&gt;&lt;&#x2F;a&gt; を見てみよう。&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;&quot;&gt;
+&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub struct &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;Fn {
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;defaultness&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Defaultness,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;generics&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Generics,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;sig&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: FnSig,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;body&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Option&amp;lt;P&amp;lt;Block&amp;gt;&amp;gt;,
+}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;ここでも色々あるが、関数の中に入りたいので &lt;code&gt;body&lt;&#x2F;code&gt; を見ていく。関数の処理が宣言されない場合もあるようでここでは &lt;code&gt;Option&amp;lt;P&amp;lt;Block&amp;gt;&amp;gt;&lt;&#x2F;code&gt; と定義されており、次に &lt;a href=&quot;https:&#x2F;&#x2F;doc.rust-lang.org&#x2F;nightly&#x2F;nightly-rustc&#x2F;rustc_ast&#x2F;ast&#x2F;struct.Block.html&quot;&gt;&lt;code&gt;Block&lt;&#x2F;code&gt;&lt;&#x2F;a&gt; を見ていくことにする。&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;&quot;&gt;
+&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub struct &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;Block {
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;stmts&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Vec&amp;lt;Stmt&amp;gt;,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;id&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: NodeId,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;rules&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: BlockCheckMode,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;span&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Span,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;tokens&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Option&amp;lt;LazyTokenStream&amp;gt;,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;could_be_bare_literal&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;bool&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;,
+}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;上記と同様にメインとなる &lt;code&gt;stmts&lt;&#x2F;code&gt; は &lt;code&gt;Vec&amp;lt;Stmt&amp;gt;&lt;&#x2F;code&gt; と定義されているので次は &lt;a href=&quot;https:&#x2F;&#x2F;doc.rust-lang.org&#x2F;nightly&#x2F;nightly-rustc&#x2F;rustc_ast&#x2F;ast&#x2F;struct.Stmt.html&quot;&gt;&lt;code&gt;Stmt&lt;&#x2F;code&gt;&lt;&#x2F;a&gt; を見ていく。&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;&quot;&gt;
+&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub struct &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;Stmt {
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;id&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: NodeId,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;kind&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: StmtKind,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;span&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Span,
+}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;ここでの statement は実際のコードでは &lt;code&gt;let x = 5;&lt;&#x2F;code&gt; のことである。let で変数に値を代入しているところである。このため &lt;code&gt;ItemKind&lt;&#x2F;code&gt; のときと同様に &lt;a href=&quot;https:&#x2F;&#x2F;doc.rust-lang.org&#x2F;nightly&#x2F;nightly-rustc&#x2F;rustc_ast&#x2F;ast&#x2F;enum.StmtKind.html&quot;&gt;&lt;code&gt;StmtKind&lt;&#x2F;code&gt;&lt;&#x2F;a&gt; を確認すると、ここでは &lt;a href=&quot;https:&#x2F;&#x2F;doc.rust-lang.org&#x2F;nightly&#x2F;nightly-rustc&#x2F;rustc_ast&#x2F;ast&#x2F;struct.Local.html&quot;&gt;&lt;code&gt;Local&lt;&#x2F;code&gt;&lt;&#x2F;a&gt; が該当するとわかる。&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;&quot;&gt;
+&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub struct &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;Local {
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;id&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: NodeId,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;pat&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: P&amp;lt;Pat&amp;gt;,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;ty&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Option&amp;lt;P&amp;lt;Ty&amp;gt;&amp;gt;,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;kind&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: LocalKind,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;span&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Span,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;attrs&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: AttrVec,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;tokens&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Option&amp;lt;LazyTokenStream&amp;gt;,
+}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;ドキュメントに書いてある &lt;code&gt;Local represents a let statement, e.g., let &amp;lt;pat&amp;gt;:&amp;lt;ty&amp;gt; = &amp;lt;expr&amp;gt;;.&lt;&#x2F;code&gt; を見てもらえると直感的でわかりやすいと思う。つまり実際のコードにおける &lt;code&gt;let x = 5;&lt;&#x2F;code&gt; との対応を考えれば良いので、&lt;code&gt;&amp;lt;pat&amp;gt;&lt;&#x2F;code&gt; は &lt;code&gt;x&lt;&#x2F;code&gt;、&lt;code&gt;&amp;lt;ty&amp;gt;&lt;&#x2F;code&gt; は今回はなし、&lt;code&gt;&amp;lt;expr&amp;gt;&lt;&#x2F;code&gt; は &lt;code&gt;5&lt;&#x2F;code&gt; と対応することがわかる。では次は &lt;a href=&quot;https:&#x2F;&#x2F;doc.rust-lang.org&#x2F;nightly&#x2F;nightly-rustc&#x2F;rustc_ast&#x2F;ast&#x2F;struct.Pat.html&quot;&gt;&lt;code&gt;Pat&lt;&#x2F;code&gt;&lt;&#x2F;a&gt; を見てみよう。&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;&quot;&gt;
+&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub struct &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;Pat {
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;id&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: NodeId,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;kind&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: PatKind,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;span&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Span,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;tokens&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Option&amp;lt;LazyTokenStream&amp;gt;,
+}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;同様にして &lt;a href=&quot;https:&#x2F;&#x2F;doc.rust-lang.org&#x2F;nightly&#x2F;nightly-rustc&#x2F;rustc_ast&#x2F;ast&#x2F;enum.PatKind.html&quot;&gt;&lt;code&gt;PatKind&lt;&#x2F;code&gt;&lt;&#x2F;a&gt; を確認するとここでは単なる変数宣言なので &lt;code&gt;Ident&lt;&#x2F;code&gt; に該当する。また、AST でも該当の部分を確認すると変数宣言した &lt;code&gt;x&lt;&#x2F;code&gt; が確認できる。&lt;&#x2F;p&gt;
+&lt;p&gt;次に &lt;code&gt;&amp;lt;expr&amp;gt;&lt;&#x2F;code&gt; に該当する部分だが &lt;code&gt;Local&lt;&#x2F;code&gt; の定義に &lt;code&gt;expr&lt;&#x2F;code&gt; はなくここでは &lt;a href=&quot;https:&#x2F;&#x2F;doc.rust-lang.org&#x2F;nightly&#x2F;nightly-rustc&#x2F;rustc_ast&#x2F;ast&#x2F;enum.LocalKind.html&quot;&gt;&lt;code&gt;LocalKind&lt;&#x2F;code&gt;&lt;&#x2F;a&gt;を確認する。これもドキュメントを見ると直感的でわかりやすいが &lt;code&gt;Init(P&amp;lt;Expr&amp;gt;)&lt;&#x2F;code&gt; が今回のものに該当し &lt;a href=&quot;https:&#x2F;&#x2F;doc.rust-lang.org&#x2F;nightly&#x2F;nightly-rustc&#x2F;rustc_ast&#x2F;ast&#x2F;struct.Expr.html&quot;&gt;&lt;code&gt;Expr&lt;&#x2F;code&gt;&lt;&#x2F;a&gt; を見ればいい。&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;&quot;&gt;
+&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub struct &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;Expr {
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;id&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: NodeId,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;kind&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: ExprKind,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;span&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Span,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;attrs&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: AttrVec,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;tokens&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Option&amp;lt;LazyTokenStream&amp;gt;,
+}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;&lt;code&gt;Expr&lt;&#x2F;code&gt; と &lt;code&gt;Stmt&lt;&#x2F;code&gt; の詳細ついては &lt;a href=&quot;https:&#x2F;&#x2F;doc.rust-lang.org&#x2F;reference&#x2F;statements-and-expressions.html&quot;&gt;https:&#x2F;&#x2F;doc.rust-lang.org&#x2F;reference&#x2F;statements-and-expressions.html&lt;&#x2F;a&gt; を見てほしい。&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;code&gt;5&lt;&#x2F;code&gt; に該当する &lt;a href=&quot;https:&#x2F;&#x2F;doc.rust-lang.org&#x2F;nightly&#x2F;nightly-rustc&#x2F;rustc_ast&#x2F;ast&#x2F;enum.ExprKind.html&quot;&gt;&lt;code&gt;ExprKind&lt;&#x2F;code&gt;&lt;&#x2F;a&gt; を探すといい。ここでは literal である &lt;a href=&quot;https:&#x2F;&#x2F;doc.rust-lang.org&#x2F;nightly&#x2F;nightly-rustc&#x2F;rustc_ast&#x2F;ast&#x2F;struct.Lit.html&quot;&gt;&lt;code&gt;Lit&lt;&#x2F;code&gt;&lt;&#x2F;a&gt;。&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;&quot;&gt;
+&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub struct &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;Lit {
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;token&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Lit,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;kind&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: LitKind,
+    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;span&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;: Span,
+}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;繰り返しばかりで少し面倒だがだいたい &lt;code&gt;XxxKind&lt;&#x2F;code&gt; のところを見れば大まかな構造がわかると思う。&lt;a href=&quot;https:&#x2F;&#x2F;doc.rust-lang.org&#x2F;nightly&#x2F;nightly-rustc&#x2F;rustc_ast&#x2F;ast&#x2F;enum.LitKind.html&quot;&gt;&lt;code&gt;LitKind&lt;&#x2F;code&gt;&lt;&#x2F;a&gt; を確認する。&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;&quot;&gt;
+&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub enum &lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;LitKind {
+    Str(Symbol, StrStyle),
+    ByteStr(Lrc&amp;lt;[&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;u8&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;]&amp;gt;),
+    Byte(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;u8&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;),
+    Char(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;char&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;),
+    Int(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;u128&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;, LitIntType),
+    Float(Symbol, LitFloatType),
+    Bool(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;bool&lt;&#x2F;span&gt;&lt;span style=&quot;color:#c0c5ce;&quot;&gt;),
+    Err(Symbol),
+}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;ここでは単なる &lt;code&gt;5&lt;&#x2F;code&gt; なので &lt;code&gt;Int&lt;&#x2F;code&gt; となる。&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;zhong-warini&quot;&gt;終わりに&lt;&#x2F;h2&gt;
+&lt;p&gt;これは、元々は &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;rust-lang&#x2F;rust-clippy&quot;&gt;Clippy&lt;&#x2F;a&gt; についていろいろ書きたかったのだが、その準備として Rust の AST について説明しなきゃと思い書いていた文章だった。&lt;&#x2F;p&gt;
+</description>
+        </item>
         <item>
             <title>正規表現マッチャをDFAで書く</title>
             <pubDate>Tue, 28 Sep 2021 00:00:00 +0000</pubDate>
