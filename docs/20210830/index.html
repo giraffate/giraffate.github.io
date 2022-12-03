@@ -9,7 +9,7 @@
     <title>四則演算を再帰下降で書く(Rust)</title>
     <meta name="description" content="三鷹で活動しているクラブチームです">
 
-    <link rel="stylesheet" href="https:&#x2F;&#x2F;mitaka.club&#x2F;main.css">
+    <link rel="stylesheet" href="https://mitaka.club/main.css">
 
     
         <link rel="alternate" type="application/rss+xml" title="RSS" href="https://mitaka.club/index.xml">
@@ -61,220 +61,220 @@
     </header>
     <div class="content">
         <p>覚えてるかなと思ってサッと書いてみた。テスト通ってるし多分動くと思う。テスト含めて200行くらいなので勉強したい言語で書いてみるのもいいかもしれない、TypeScriptとか。</p>
-<pre style="background-color:#2b303b;">
-<code class="language-rust" data-lang="rust"><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">main</span><span style="color:#c0c5ce;">() {
-    </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> s = &quot;</span><span style="color:#a3be8c;">1 + 1</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">();
-    </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> tokens = </span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(s);
-    </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> parser = Parser { tokens, idx: </span><span style="color:#d08770;">0 </span><span style="color:#c0c5ce;">};
-    </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> ret = parser.</span><span style="color:#96b5b4;">expr</span><span style="color:#c0c5ce;">();
-    println!(&quot;</span><span style="color:#d08770;">{}</span><span style="color:#c0c5ce;">&quot;, ret);
-}
-
-</span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">lexer</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">s</span><span style="color:#c0c5ce;">: String) -&gt; Vec&lt;String&gt; {
-    </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> ret = Vec::new();
-    </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> num = Vec::new();
-
-    </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> chars: Vec&lt;</span><span style="color:#b48ead;">char</span><span style="color:#c0c5ce;">&gt; = s.</span><span style="color:#96b5b4;">chars</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">collect</span><span style="color:#c0c5ce;">();
-    </span><span style="color:#b48ead;">for</span><span style="color:#c0c5ce;"> i in </span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">..chars.</span><span style="color:#96b5b4;">len</span><span style="color:#c0c5ce;">() {
-        </span><span style="color:#b48ead;">match</span><span style="color:#c0c5ce;"> chars[i] {
-            &#39;</span><span style="color:#a3be8c;">(</span><span style="color:#c0c5ce;">&#39; | &#39;</span><span style="color:#a3be8c;">)</span><span style="color:#c0c5ce;">&#39; | &#39;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&#39; | &#39;</span><span style="color:#a3be8c;">-</span><span style="color:#c0c5ce;">&#39; | &#39;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&#39; | &#39;</span><span style="color:#a3be8c;">/</span><span style="color:#c0c5ce;">&#39; =&gt; ret.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(String::from(chars[i])),
-            n </span><span style="color:#b48ead;">if</span><span style="color:#c0c5ce;"> n.</span><span style="color:#96b5b4;">is_numeric</span><span style="color:#c0c5ce;">() =&gt; {
-                num.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(n);
-            }
-            &#39; &#39; =&gt; {}
-            _ =&gt; panic!(),
-        }
-
-        </span><span style="color:#b48ead;">if </span><span style="color:#c0c5ce;">!num.</span><span style="color:#96b5b4;">is_empty</span><span style="color:#c0c5ce;">() &amp;&amp; i &lt; chars.</span><span style="color:#96b5b4;">len</span><span style="color:#c0c5ce;">() - </span><span style="color:#d08770;">1 </span><span style="color:#c0c5ce;">&amp;&amp; !chars[i + </span><span style="color:#d08770;">1</span><span style="color:#c0c5ce;">].</span><span style="color:#96b5b4;">is_numeric</span><span style="color:#c0c5ce;">() {
-            </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> n: String = num.</span><span style="color:#96b5b4;">iter</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">collect</span><span style="color:#c0c5ce;">();
-            ret.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(n);
-            num = Vec::new();
-        }
-    }
-
-    </span><span style="color:#b48ead;">if </span><span style="color:#c0c5ce;">!num.</span><span style="color:#96b5b4;">is_empty</span><span style="color:#c0c5ce;">() {
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> n: String = num.</span><span style="color:#96b5b4;">iter</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">collect</span><span style="color:#c0c5ce;">();
-        ret.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(n);
-    }
-
-    ret
-}
-
-</span><span style="color:#b48ead;">struct </span><span style="color:#c0c5ce;">Parser {
-    </span><span style="color:#bf616a;">tokens</span><span style="color:#c0c5ce;">: Vec&lt;String&gt;,
-    </span><span style="color:#bf616a;">idx</span><span style="color:#c0c5ce;">: </span><span style="color:#b48ead;">usize</span><span style="color:#c0c5ce;">,
-}
-
-</span><span style="color:#b48ead;">impl </span><span style="color:#c0c5ce;">Parser {
-    </span><span style="color:#b48ead;">pub fn </span><span style="color:#8fa1b3;">expr</span><span style="color:#c0c5ce;">(&amp;</span><span style="color:#b48ead;">mut </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">) -&gt; </span><span style="color:#b48ead;">i32 </span><span style="color:#c0c5ce;">{
-        </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> left = </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">term</span><span style="color:#c0c5ce;">();
-
-        </span><span style="color:#b48ead;">loop </span><span style="color:#c0c5ce;">{
-            </span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.idx &gt;= </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.tokens.</span><span style="color:#96b5b4;">len</span><span style="color:#c0c5ce;">() {
-                </span><span style="color:#b48ead;">break</span><span style="color:#c0c5ce;">;
-            }
-
-            </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> op = </span><span style="color:#b48ead;">match </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.tokens[</span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.idx].</span><span style="color:#96b5b4;">as_str</span><span style="color:#c0c5ce;">() {
-                &quot;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&quot; =&gt; &quot;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&quot;,
-                &quot;</span><span style="color:#a3be8c;">-</span><span style="color:#c0c5ce;">&quot; =&gt; &quot;</span><span style="color:#a3be8c;">-</span><span style="color:#c0c5ce;">&quot;,
-                _ =&gt; </span><span style="color:#b48ead;">break</span><span style="color:#c0c5ce;">,
-            };
-            </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">consume</span><span style="color:#c0c5ce;">();
-
-            </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> right = </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">term</span><span style="color:#c0c5ce;">();
-            left = </span><span style="color:#b48ead;">match</span><span style="color:#c0c5ce;"> op {
-                &quot;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&quot; =&gt; left + right,
-                &quot;</span><span style="color:#a3be8c;">-</span><span style="color:#c0c5ce;">&quot; =&gt; left - right,
-                _ =&gt; unreachable!(),
-            }
-        }
-
-        left
-    }
-
-    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">term</span><span style="color:#c0c5ce;">(&amp;</span><span style="color:#b48ead;">mut </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">) -&gt; </span><span style="color:#b48ead;">i32 </span><span style="color:#c0c5ce;">{
-        </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> left = </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">factor</span><span style="color:#c0c5ce;">();
-
-        </span><span style="color:#b48ead;">loop </span><span style="color:#c0c5ce;">{
-            </span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.idx &gt;= </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.tokens.</span><span style="color:#96b5b4;">len</span><span style="color:#c0c5ce;">() {
-                </span><span style="color:#b48ead;">break</span><span style="color:#c0c5ce;">;
-            }
-
-            </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> op = </span><span style="color:#b48ead;">match </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.tokens[</span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.idx].</span><span style="color:#96b5b4;">as_str</span><span style="color:#c0c5ce;">() {
-                &quot;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&quot; =&gt; &quot;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&quot;,
-                &quot;</span><span style="color:#a3be8c;">/</span><span style="color:#c0c5ce;">&quot; =&gt; &quot;</span><span style="color:#a3be8c;">/</span><span style="color:#c0c5ce;">&quot;,
-                _ =&gt; </span><span style="color:#b48ead;">break</span><span style="color:#c0c5ce;">,
-            };
-            </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">consume</span><span style="color:#c0c5ce;">();
-
-            </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> right = </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">factor</span><span style="color:#c0c5ce;">();
-            left = </span><span style="color:#b48ead;">match</span><span style="color:#c0c5ce;"> op {
-                &quot;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&quot; =&gt; left * right,
-                &quot;</span><span style="color:#a3be8c;">/</span><span style="color:#c0c5ce;">&quot; =&gt; left / right,
-                _ =&gt; unreachable!(),
-            }
-        }
-
-        left
-    }
-
-    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">factor</span><span style="color:#c0c5ce;">(&amp;</span><span style="color:#b48ead;">mut </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">) -&gt; </span><span style="color:#b48ead;">i32 </span><span style="color:#c0c5ce;">{
-        </span><span style="color:#b48ead;">match </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.tokens[</span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.idx].</span><span style="color:#96b5b4;">as_str</span><span style="color:#c0c5ce;">() {
-            &quot;</span><span style="color:#a3be8c;">(</span><span style="color:#c0c5ce;">&quot; =&gt; {
-                </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">consume</span><span style="color:#c0c5ce;">();
-                </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> ret = </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">expr</span><span style="color:#c0c5ce;">();
-
-                </span><span style="color:#b48ead;">match </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.tokens[</span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.idx].</span><span style="color:#96b5b4;">as_str</span><span style="color:#c0c5ce;">() {
-                    &quot;</span><span style="color:#a3be8c;">)</span><span style="color:#c0c5ce;">&quot; =&gt; {
-                        </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">consume</span><span style="color:#c0c5ce;">();
-                        </span><span style="color:#b48ead;">return</span><span style="color:#c0c5ce;"> ret;
-                    }
-                    _ =&gt; panic!(),
-                }
-            }
-            _ =&gt; </span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">number</span><span style="color:#c0c5ce;">(),
-        }
-    }
-
-    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">number</span><span style="color:#c0c5ce;">(&amp;</span><span style="color:#b48ead;">mut </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">) -&gt; </span><span style="color:#b48ead;">i32 </span><span style="color:#c0c5ce;">{
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> ret = </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.tokens[</span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.idx].parse::&lt;</span><span style="color:#b48ead;">i32</span><span style="color:#c0c5ce;">&gt;().</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">();
-        </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.</span><span style="color:#96b5b4;">consume</span><span style="color:#c0c5ce;">();
-        ret
-    }
-
-    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">consume</span><span style="color:#c0c5ce;">(&amp;</span><span style="color:#b48ead;">mut </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">) {
-        </span><span style="color:#bf616a;">self</span><span style="color:#c0c5ce;">.idx += </span><span style="color:#d08770;">1</span><span style="color:#c0c5ce;">;
-    }
-}
-
-</span><span style="color:#b48ead;">mod </span><span style="color:#c0c5ce;">test {
-    </span><span style="color:#b48ead;">use super</span><span style="color:#c0c5ce;">::*;
-
-    #[</span><span style="color:#bf616a;">test</span><span style="color:#c0c5ce;">]
-    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">lexer_test</span><span style="color:#c0c5ce;">() {
-        assert_eq!(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">12 + 4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()), vec![&quot;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&quot;]);
-        assert_eq!(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">12 - 4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()), vec![&quot;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">-</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&quot;]);
-        assert_eq!(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">12 * 4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()), vec![&quot;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&quot;]);
-        assert_eq!(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">12 / 4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()), vec![&quot;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">/</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&quot;]);
-
-        assert_eq!(
-            </span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">(11 + 1) * 2</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()),
-            vec![&quot;</span><span style="color:#a3be8c;">(</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">11</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">1</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">)</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">2</span><span style="color:#c0c5ce;">&quot;]
-        );
-    }
-
-    #[</span><span style="color:#bf616a;">test</span><span style="color:#c0c5ce;">]
-    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">parser_test</span><span style="color:#c0c5ce;">() {
-        </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> parser = Parser {
-            tokens: vec![&quot;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(), &quot;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(), &quot;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()],
-            idx: </span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">,
-        };
-        assert_eq!(parser.</span><span style="color:#96b5b4;">expr</span><span style="color:#c0c5ce;">(), </span><span style="color:#d08770;">16</span><span style="color:#c0c5ce;">);
-
-        </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> parser = Parser {
-            tokens: vec![&quot;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(), &quot;</span><span style="color:#a3be8c;">-</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(), &quot;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()],
-            idx: </span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">,
-        };
-        assert_eq!(parser.</span><span style="color:#96b5b4;">expr</span><span style="color:#c0c5ce;">(), </span><span style="color:#d08770;">8</span><span style="color:#c0c5ce;">);
-
-        </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> parser = Parser {
-            tokens: vec![&quot;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(), &quot;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(), &quot;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()],
-            idx: </span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">,
-        };
-        assert_eq!(parser.</span><span style="color:#96b5b4;">expr</span><span style="color:#c0c5ce;">(), </span><span style="color:#d08770;">48</span><span style="color:#c0c5ce;">);
-
-        </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> parser = Parser {
-            tokens: vec![&quot;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(), &quot;</span><span style="color:#a3be8c;">/</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(), &quot;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()],
-            idx: </span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">,
-        };
-        assert_eq!(parser.</span><span style="color:#96b5b4;">expr</span><span style="color:#c0c5ce;">(), </span><span style="color:#d08770;">3</span><span style="color:#c0c5ce;">);
-
-        </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> parser = Parser {
-            tokens: vec![&quot;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(), &quot;</span><span style="color:#a3be8c;">/</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(), &quot;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()],
-            idx: </span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">,
-        };
-        assert_eq!(parser.</span><span style="color:#96b5b4;">expr</span><span style="color:#c0c5ce;">(), </span><span style="color:#d08770;">3</span><span style="color:#c0c5ce;">);
-
-        </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> parser = Parser {
-            tokens: vec![
-                &quot;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
-                &quot;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
-                &quot;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
-                &quot;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
-                &quot;</span><span style="color:#a3be8c;">3</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
-            ],
-            idx: </span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">,
-        };
-        assert_eq!(parser.</span><span style="color:#96b5b4;">expr</span><span style="color:#c0c5ce;">(), </span><span style="color:#d08770;">24</span><span style="color:#c0c5ce;">);
-
-        </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> parser = Parser {
-            tokens: vec![
-                &quot;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
-                &quot;</span><span style="color:#a3be8c;">-</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
-                &quot;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
-                &quot;</span><span style="color:#a3be8c;">-</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
-                &quot;</span><span style="color:#a3be8c;">3</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
-            ],
-            idx: </span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">,
-        };
-        assert_eq!(parser.</span><span style="color:#96b5b4;">expr</span><span style="color:#c0c5ce;">(), </span><span style="color:#d08770;">5</span><span style="color:#c0c5ce;">);
-
-        </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> parser = Parser {
-            tokens: vec![
-                &quot;</span><span style="color:#a3be8c;">(</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
-                &quot;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
-                &quot;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
-                &quot;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
-                &quot;</span><span style="color:#a3be8c;">)</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
-                &quot;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
-                &quot;</span><span style="color:#a3be8c;">3</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
-            ],
-            idx: </span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">,
-        };
-        assert_eq!(parser.</span><span style="color:#96b5b4;">expr</span><span style="color:#c0c5ce;">(), </span><span style="color:#d08770;">48</span><span style="color:#c0c5ce;">);
-    }
-}
+<pre data-lang="rust" style="background-color:#2b303b;color:#c0c5ce;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">main</span><span>() {
+</span><span>    </span><span style="color:#b48ead;">let</span><span> s = &quot;</span><span style="color:#a3be8c;">1 + 1</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>();
+</span><span>    </span><span style="color:#b48ead;">let</span><span> tokens = </span><span style="color:#96b5b4;">lexer</span><span>(s);
+</span><span>    </span><span style="color:#b48ead;">let mut</span><span> parser = Parser { tokens, idx: </span><span style="color:#d08770;">0 </span><span>};
+</span><span>    </span><span style="color:#b48ead;">let</span><span> ret = parser.</span><span style="color:#96b5b4;">expr</span><span>();
+</span><span>    println!(&quot;</span><span style="color:#d08770;">{}</span><span>&quot;, ret);
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">lexer</span><span>(</span><span style="color:#bf616a;">s</span><span>: String) -&gt; Vec&lt;String&gt; {
+</span><span>    </span><span style="color:#b48ead;">let mut</span><span> ret = Vec::new();
+</span><span>    </span><span style="color:#b48ead;">let mut</span><span> num = Vec::new();
+</span><span>
+</span><span>    </span><span style="color:#b48ead;">let</span><span> chars: Vec&lt;</span><span style="color:#b48ead;">char</span><span>&gt; = s.</span><span style="color:#96b5b4;">chars</span><span>().</span><span style="color:#96b5b4;">collect</span><span>();
+</span><span>    </span><span style="color:#b48ead;">for</span><span> i in </span><span style="color:#d08770;">0</span><span>..chars.</span><span style="color:#96b5b4;">len</span><span>() {
+</span><span>        </span><span style="color:#b48ead;">match</span><span> chars[i] {
+</span><span>            &#39;</span><span style="color:#a3be8c;">(</span><span>&#39; | &#39;</span><span style="color:#a3be8c;">)</span><span>&#39; | &#39;</span><span style="color:#a3be8c;">+</span><span>&#39; | &#39;</span><span style="color:#a3be8c;">-</span><span>&#39; | &#39;</span><span style="color:#a3be8c;">*</span><span>&#39; | &#39;</span><span style="color:#a3be8c;">/</span><span>&#39; =&gt; ret.</span><span style="color:#96b5b4;">push</span><span>(String::from(chars[i])),
+</span><span>            n </span><span style="color:#b48ead;">if</span><span> n.</span><span style="color:#96b5b4;">is_numeric</span><span>() =&gt; {
+</span><span>                num.</span><span style="color:#96b5b4;">push</span><span>(n);
+</span><span>            }
+</span><span>            &#39; &#39; =&gt; {}
+</span><span>            _ =&gt; panic!(),
+</span><span>        }
+</span><span>
+</span><span>        </span><span style="color:#b48ead;">if </span><span>!num.</span><span style="color:#96b5b4;">is_empty</span><span>() &amp;&amp; i &lt; chars.</span><span style="color:#96b5b4;">len</span><span>() - </span><span style="color:#d08770;">1 </span><span>&amp;&amp; !chars[i + </span><span style="color:#d08770;">1</span><span>].</span><span style="color:#96b5b4;">is_numeric</span><span>() {
+</span><span>            </span><span style="color:#b48ead;">let</span><span> n: String = num.</span><span style="color:#96b5b4;">iter</span><span>().</span><span style="color:#96b5b4;">collect</span><span>();
+</span><span>            ret.</span><span style="color:#96b5b4;">push</span><span>(n);
+</span><span>            num = Vec::new();
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#b48ead;">if </span><span>!num.</span><span style="color:#96b5b4;">is_empty</span><span>() {
+</span><span>        </span><span style="color:#b48ead;">let</span><span> n: String = num.</span><span style="color:#96b5b4;">iter</span><span>().</span><span style="color:#96b5b4;">collect</span><span>();
+</span><span>        ret.</span><span style="color:#96b5b4;">push</span><span>(n);
+</span><span>    }
+</span><span>
+</span><span>    ret
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">struct </span><span>Parser {
+</span><span>    </span><span style="color:#bf616a;">tokens</span><span>: Vec&lt;String&gt;,
+</span><span>    </span><span style="color:#bf616a;">idx</span><span>: </span><span style="color:#b48ead;">usize</span><span>,
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">impl </span><span>Parser {
+</span><span>    </span><span style="color:#b48ead;">pub fn </span><span style="color:#8fa1b3;">expr</span><span>(&amp;</span><span style="color:#b48ead;">mut </span><span style="color:#bf616a;">self</span><span>) -&gt; </span><span style="color:#b48ead;">i32 </span><span>{
+</span><span>        </span><span style="color:#b48ead;">let mut</span><span> left = </span><span style="color:#bf616a;">self</span><span>.</span><span style="color:#96b5b4;">term</span><span>();
+</span><span>
+</span><span>        </span><span style="color:#b48ead;">loop </span><span>{
+</span><span>            </span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">self</span><span>.idx &gt;= </span><span style="color:#bf616a;">self</span><span>.tokens.</span><span style="color:#96b5b4;">len</span><span>() {
+</span><span>                </span><span style="color:#b48ead;">break</span><span>;
+</span><span>            }
+</span><span>
+</span><span>            </span><span style="color:#b48ead;">let</span><span> op = </span><span style="color:#b48ead;">match </span><span style="color:#bf616a;">self</span><span>.tokens[</span><span style="color:#bf616a;">self</span><span>.idx].</span><span style="color:#96b5b4;">as_str</span><span>() {
+</span><span>                &quot;</span><span style="color:#a3be8c;">+</span><span>&quot; =&gt; &quot;</span><span style="color:#a3be8c;">+</span><span>&quot;,
+</span><span>                &quot;</span><span style="color:#a3be8c;">-</span><span>&quot; =&gt; &quot;</span><span style="color:#a3be8c;">-</span><span>&quot;,
+</span><span>                _ =&gt; </span><span style="color:#b48ead;">break</span><span>,
+</span><span>            };
+</span><span>            </span><span style="color:#bf616a;">self</span><span>.</span><span style="color:#96b5b4;">consume</span><span>();
+</span><span>
+</span><span>            </span><span style="color:#b48ead;">let</span><span> right = </span><span style="color:#bf616a;">self</span><span>.</span><span style="color:#96b5b4;">term</span><span>();
+</span><span>            left = </span><span style="color:#b48ead;">match</span><span> op {
+</span><span>                &quot;</span><span style="color:#a3be8c;">+</span><span>&quot; =&gt; left + right,
+</span><span>                &quot;</span><span style="color:#a3be8c;">-</span><span>&quot; =&gt; left - right,
+</span><span>                _ =&gt; unreachable!(),
+</span><span>            }
+</span><span>        }
+</span><span>
+</span><span>        left
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">term</span><span>(&amp;</span><span style="color:#b48ead;">mut </span><span style="color:#bf616a;">self</span><span>) -&gt; </span><span style="color:#b48ead;">i32 </span><span>{
+</span><span>        </span><span style="color:#b48ead;">let mut</span><span> left = </span><span style="color:#bf616a;">self</span><span>.</span><span style="color:#96b5b4;">factor</span><span>();
+</span><span>
+</span><span>        </span><span style="color:#b48ead;">loop </span><span>{
+</span><span>            </span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">self</span><span>.idx &gt;= </span><span style="color:#bf616a;">self</span><span>.tokens.</span><span style="color:#96b5b4;">len</span><span>() {
+</span><span>                </span><span style="color:#b48ead;">break</span><span>;
+</span><span>            }
+</span><span>
+</span><span>            </span><span style="color:#b48ead;">let</span><span> op = </span><span style="color:#b48ead;">match </span><span style="color:#bf616a;">self</span><span>.tokens[</span><span style="color:#bf616a;">self</span><span>.idx].</span><span style="color:#96b5b4;">as_str</span><span>() {
+</span><span>                &quot;</span><span style="color:#a3be8c;">*</span><span>&quot; =&gt; &quot;</span><span style="color:#a3be8c;">*</span><span>&quot;,
+</span><span>                &quot;</span><span style="color:#a3be8c;">/</span><span>&quot; =&gt; &quot;</span><span style="color:#a3be8c;">/</span><span>&quot;,
+</span><span>                _ =&gt; </span><span style="color:#b48ead;">break</span><span>,
+</span><span>            };
+</span><span>            </span><span style="color:#bf616a;">self</span><span>.</span><span style="color:#96b5b4;">consume</span><span>();
+</span><span>
+</span><span>            </span><span style="color:#b48ead;">let</span><span> right = </span><span style="color:#bf616a;">self</span><span>.</span><span style="color:#96b5b4;">factor</span><span>();
+</span><span>            left = </span><span style="color:#b48ead;">match</span><span> op {
+</span><span>                &quot;</span><span style="color:#a3be8c;">*</span><span>&quot; =&gt; left * right,
+</span><span>                &quot;</span><span style="color:#a3be8c;">/</span><span>&quot; =&gt; left / right,
+</span><span>                _ =&gt; unreachable!(),
+</span><span>            }
+</span><span>        }
+</span><span>
+</span><span>        left
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">factor</span><span>(&amp;</span><span style="color:#b48ead;">mut </span><span style="color:#bf616a;">self</span><span>) -&gt; </span><span style="color:#b48ead;">i32 </span><span>{
+</span><span>        </span><span style="color:#b48ead;">match </span><span style="color:#bf616a;">self</span><span>.tokens[</span><span style="color:#bf616a;">self</span><span>.idx].</span><span style="color:#96b5b4;">as_str</span><span>() {
+</span><span>            &quot;</span><span style="color:#a3be8c;">(</span><span>&quot; =&gt; {
+</span><span>                </span><span style="color:#bf616a;">self</span><span>.</span><span style="color:#96b5b4;">consume</span><span>();
+</span><span>                </span><span style="color:#b48ead;">let</span><span> ret = </span><span style="color:#bf616a;">self</span><span>.</span><span style="color:#96b5b4;">expr</span><span>();
+</span><span>
+</span><span>                </span><span style="color:#b48ead;">match </span><span style="color:#bf616a;">self</span><span>.tokens[</span><span style="color:#bf616a;">self</span><span>.idx].</span><span style="color:#96b5b4;">as_str</span><span>() {
+</span><span>                    &quot;</span><span style="color:#a3be8c;">)</span><span>&quot; =&gt; {
+</span><span>                        </span><span style="color:#bf616a;">self</span><span>.</span><span style="color:#96b5b4;">consume</span><span>();
+</span><span>                        </span><span style="color:#b48ead;">return</span><span> ret;
+</span><span>                    }
+</span><span>                    _ =&gt; panic!(),
+</span><span>                }
+</span><span>            }
+</span><span>            _ =&gt; </span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">self</span><span>.</span><span style="color:#96b5b4;">number</span><span>(),
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">number</span><span>(&amp;</span><span style="color:#b48ead;">mut </span><span style="color:#bf616a;">self</span><span>) -&gt; </span><span style="color:#b48ead;">i32 </span><span>{
+</span><span>        </span><span style="color:#b48ead;">let</span><span> ret = </span><span style="color:#bf616a;">self</span><span>.tokens[</span><span style="color:#bf616a;">self</span><span>.idx].parse::&lt;</span><span style="color:#b48ead;">i32</span><span>&gt;().</span><span style="color:#96b5b4;">unwrap</span><span>();
+</span><span>        </span><span style="color:#bf616a;">self</span><span>.</span><span style="color:#96b5b4;">consume</span><span>();
+</span><span>        ret
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">consume</span><span>(&amp;</span><span style="color:#b48ead;">mut </span><span style="color:#bf616a;">self</span><span>) {
+</span><span>        </span><span style="color:#bf616a;">self</span><span>.idx += </span><span style="color:#d08770;">1</span><span>;
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">mod </span><span>test {
+</span><span>    </span><span style="color:#b48ead;">use super</span><span>::*;
+</span><span>
+</span><span>    #[</span><span style="color:#bf616a;">test</span><span>]
+</span><span>    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">lexer_test</span><span>() {
+</span><span>        assert_eq!(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">12 + 4</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>()), vec![&quot;</span><span style="color:#a3be8c;">12</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">+</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">4</span><span>&quot;]);
+</span><span>        assert_eq!(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">12 - 4</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>()), vec![&quot;</span><span style="color:#a3be8c;">12</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">-</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">4</span><span>&quot;]);
+</span><span>        assert_eq!(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">12 * 4</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>()), vec![&quot;</span><span style="color:#a3be8c;">12</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">*</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">4</span><span>&quot;]);
+</span><span>        assert_eq!(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">12 / 4</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>()), vec![&quot;</span><span style="color:#a3be8c;">12</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">/</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">4</span><span>&quot;]);
+</span><span>
+</span><span>        assert_eq!(
+</span><span>            </span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">(11 + 1) * 2</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>()),
+</span><span>            vec![&quot;</span><span style="color:#a3be8c;">(</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">11</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">+</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">1</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">)</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">*</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">2</span><span>&quot;]
+</span><span>        );
+</span><span>    }
+</span><span>
+</span><span>    #[</span><span style="color:#bf616a;">test</span><span>]
+</span><span>    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">parser_test</span><span>() {
+</span><span>        </span><span style="color:#b48ead;">let mut</span><span> parser = Parser {
+</span><span>            tokens: vec![&quot;</span><span style="color:#a3be8c;">12</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(), &quot;</span><span style="color:#a3be8c;">+</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(), &quot;</span><span style="color:#a3be8c;">4</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>()],
+</span><span>            idx: </span><span style="color:#d08770;">0</span><span>,
+</span><span>        };
+</span><span>        assert_eq!(parser.</span><span style="color:#96b5b4;">expr</span><span>(), </span><span style="color:#d08770;">16</span><span>);
+</span><span>
+</span><span>        </span><span style="color:#b48ead;">let mut</span><span> parser = Parser {
+</span><span>            tokens: vec![&quot;</span><span style="color:#a3be8c;">12</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(), &quot;</span><span style="color:#a3be8c;">-</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(), &quot;</span><span style="color:#a3be8c;">4</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>()],
+</span><span>            idx: </span><span style="color:#d08770;">0</span><span>,
+</span><span>        };
+</span><span>        assert_eq!(parser.</span><span style="color:#96b5b4;">expr</span><span>(), </span><span style="color:#d08770;">8</span><span>);
+</span><span>
+</span><span>        </span><span style="color:#b48ead;">let mut</span><span> parser = Parser {
+</span><span>            tokens: vec![&quot;</span><span style="color:#a3be8c;">12</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(), &quot;</span><span style="color:#a3be8c;">*</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(), &quot;</span><span style="color:#a3be8c;">4</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>()],
+</span><span>            idx: </span><span style="color:#d08770;">0</span><span>,
+</span><span>        };
+</span><span>        assert_eq!(parser.</span><span style="color:#96b5b4;">expr</span><span>(), </span><span style="color:#d08770;">48</span><span>);
+</span><span>
+</span><span>        </span><span style="color:#b48ead;">let mut</span><span> parser = Parser {
+</span><span>            tokens: vec![&quot;</span><span style="color:#a3be8c;">12</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(), &quot;</span><span style="color:#a3be8c;">/</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(), &quot;</span><span style="color:#a3be8c;">4</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>()],
+</span><span>            idx: </span><span style="color:#d08770;">0</span><span>,
+</span><span>        };
+</span><span>        assert_eq!(parser.</span><span style="color:#96b5b4;">expr</span><span>(), </span><span style="color:#d08770;">3</span><span>);
+</span><span>
+</span><span>        </span><span style="color:#b48ead;">let mut</span><span> parser = Parser {
+</span><span>            tokens: vec![&quot;</span><span style="color:#a3be8c;">12</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(), &quot;</span><span style="color:#a3be8c;">/</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(), &quot;</span><span style="color:#a3be8c;">4</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>()],
+</span><span>            idx: </span><span style="color:#d08770;">0</span><span>,
+</span><span>        };
+</span><span>        assert_eq!(parser.</span><span style="color:#96b5b4;">expr</span><span>(), </span><span style="color:#d08770;">3</span><span>);
+</span><span>
+</span><span>        </span><span style="color:#b48ead;">let mut</span><span> parser = Parser {
+</span><span>            tokens: vec![
+</span><span>                &quot;</span><span style="color:#a3be8c;">12</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(),
+</span><span>                &quot;</span><span style="color:#a3be8c;">+</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(),
+</span><span>                &quot;</span><span style="color:#a3be8c;">4</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(),
+</span><span>                &quot;</span><span style="color:#a3be8c;">*</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(),
+</span><span>                &quot;</span><span style="color:#a3be8c;">3</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(),
+</span><span>            ],
+</span><span>            idx: </span><span style="color:#d08770;">0</span><span>,
+</span><span>        };
+</span><span>        assert_eq!(parser.</span><span style="color:#96b5b4;">expr</span><span>(), </span><span style="color:#d08770;">24</span><span>);
+</span><span>
+</span><span>        </span><span style="color:#b48ead;">let mut</span><span> parser = Parser {
+</span><span>            tokens: vec![
+</span><span>                &quot;</span><span style="color:#a3be8c;">12</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(),
+</span><span>                &quot;</span><span style="color:#a3be8c;">-</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(),
+</span><span>                &quot;</span><span style="color:#a3be8c;">4</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(),
+</span><span>                &quot;</span><span style="color:#a3be8c;">-</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(),
+</span><span>                &quot;</span><span style="color:#a3be8c;">3</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(),
+</span><span>            ],
+</span><span>            idx: </span><span style="color:#d08770;">0</span><span>,
+</span><span>        };
+</span><span>        assert_eq!(parser.</span><span style="color:#96b5b4;">expr</span><span>(), </span><span style="color:#d08770;">5</span><span>);
+</span><span>
+</span><span>        </span><span style="color:#b48ead;">let mut</span><span> parser = Parser {
+</span><span>            tokens: vec![
+</span><span>                &quot;</span><span style="color:#a3be8c;">(</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(),
+</span><span>                &quot;</span><span style="color:#a3be8c;">12</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(),
+</span><span>                &quot;</span><span style="color:#a3be8c;">+</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(),
+</span><span>                &quot;</span><span style="color:#a3be8c;">4</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(),
+</span><span>                &quot;</span><span style="color:#a3be8c;">)</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(),
+</span><span>                &quot;</span><span style="color:#a3be8c;">*</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(),
+</span><span>                &quot;</span><span style="color:#a3be8c;">3</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(),
+</span><span>            ],
+</span><span>            idx: </span><span style="color:#d08770;">0</span><span>,
+</span><span>        };
+</span><span>        assert_eq!(parser.</span><span style="color:#96b5b4;">expr</span><span>(), </span><span style="color:#d08770;">48</span><span>);
+</span><span>    }
+</span><span>}
 </span></code></pre>
+
     </div>
 
     
@@ -306,7 +306,7 @@
         </main>
         <footer>
             <p>
-                © Mitaka Club 2021<br>
+                © Mitaka Club 2022<br>
                 Powered by <a target="_blank" href="https://getzola.com/">Zola</a>, Theme <a target="_blank" href="https://github.com/zbrox/anpu-zola-theme">Anpu</a>.
             </p>
             <p>

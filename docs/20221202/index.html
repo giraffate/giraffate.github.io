@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="HandheldFriendly" content="True">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer-when-downgrade">
+
+    <title>clippy-action という GitHub Action をつくっているので紹介する</title>
+    <meta name="description" content="三鷹で活動しているクラブチームです">
+
+    <link rel="stylesheet" href="https://mitaka.club/main.css">
+
+    
+        <link rel="alternate" type="application/rss+xml" title="RSS" href="https://mitaka.club/index.xml">
+    
+
+    
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:site" content="@giraffate" />
+<meta property="og:url" content="https:&#x2F;&#x2F;mitaka.club&#x2F;20221202&#x2F;" />
+<meta property="og:title" content="clippy-action という GitHub Action をつくっているので紹介する" />
+<meta property="og:description" content="" />
+<meta property="og:image" content="https:&#x2F;&#x2F;mitaka.club/images/giraffate.jpg" />
+
+</head>
+<body>
+    <a class="skip-main" href="#main">Skip to content</a>
+    <div class="container">
+        <header> 
+            <h1 class="site-header">
+                <a href="https:&#x2F;&#x2F;mitaka.club">Mitaka Club</a>
+            </h1>
+            <nav>
+                
+                
+                
+                <a  href="https:&#x2F;&#x2F;mitaka.club">Home</a>
+                
+                
+                <a  href="https:&#x2F;&#x2F;mitaka.club&#x2F;categories">Categories</a>
+                
+                
+                <a  href="https:&#x2F;&#x2F;mitaka.club&#x2F;tags">Tags</a>
+                
+                
+                <a  href="https:&#x2F;&#x2F;github.com&#x2F;giraffate">GitHub</a>
+                
+                
+                <a  href="https:&#x2F;&#x2F;twitter.com&#x2F;giraffate">Twitter</a>
+                
+                
+            </nav>
+        </header>
+        <main id="main" tabindex="-1">
+            
+
+<article class="post">
+    <header>
+        <h1>clippy-action という GitHub Action をつくっているので紹介する</h1>
+    </header>
+    <div class="content">
+        <p>Rust には <a href="https://github.com/rust-lang/rust-clippy">Clippy</a> という Rust が公式で提供しているリンターがあり、自分はこれが好きで趣味でも仕事でも利用しているしメンテも行っている。</p>
+<p>CI で Clippy を使用する場合には<a href="https://github.com/rust-lang/rust-clippy/blob/fec00573a5c1ca233b4aeeaa087168c6cafa3d44/book/src/continuous_integration/github_actions.md">ドキュメント</a>の通り <code>-Dwarnings</code> をオプションに追加してコード全体を Clippy でチェックしてリンターに引っかかるところがあれば CI を落とすようにする、という使い方がある。自分もこうしている。</p>
+<p>しかし、上記の場合には CI の詳細画面まで見にいかないとコードのどこでリンターに引っかかったかがわからず一手間かかっていた。また、自分はたまたまなかったが、プロジェクトの初期は Clippy を使用しておらず途中から Clippy を使いたくなった場合にコード全体をチェックして多くのワーニングが出てしまうことはありそうだと考えた。</p>
+<p>Clippy を使う既存の Action を探したところ <a href="https://github.com/actions-rs/clippy-check">clippy-check</a> というのがあったが現状メンテナンスが行われていないようであった。
+このため <a href="https://github.com/giraffate/clippy-action">clippy-action</a> というのをつくり始めた。</p>
+<p><img src="https://mitaka.club/20221202/../images/20221202/clippy_action.png" alt="clippy_action" /></p>
+<p>使い方は以下の通りで、clippy-action 自体に rust のツールチェインをインストールする機能はないので <a href="https://github.com/dtolnay/rust-toolchain">dtolnay/rust-toolchain</a> を使用してもらうようにしている。ここで nightly を指定していればプロジェクト自体は stable で開発していたとしても nightly で追加されたリントを先に適用できるといったことが可能になるはずである。</p>
+<pre data-lang="yml" style="background-color:#2b303b;color:#c0c5ce;" class="language-yml "><code class="language-yml" data-lang="yml"><span style="color:#bf616a;">name</span><span>: </span><span style="color:#a3be8c;">clippy-action
+</span><span style="color:#d08770;">on</span><span>: [</span><span style="color:#a3be8c;">pull_request</span><span>]
+</span><span style="color:#bf616a;">jobs</span><span>:
+</span><span>  </span><span style="color:#bf616a;">clippy</span><span>:
+</span><span>    </span><span style="color:#bf616a;">runs-on</span><span>: </span><span style="color:#a3be8c;">ubuntu-latest
+</span><span>    </span><span style="color:#bf616a;">steps</span><span>:
+</span><span>    - </span><span style="color:#bf616a;">uses</span><span>: </span><span style="color:#a3be8c;">actions/checkout@v3
+</span><span>    - </span><span style="color:#bf616a;">uses</span><span>: </span><span style="color:#a3be8c;">dtolnay/rust-toolchain@stable
+</span><span>      </span><span style="color:#bf616a;">with</span><span>:
+</span><span>        </span><span style="color:#bf616a;">components</span><span>: </span><span style="color:#a3be8c;">clippy
+</span><span>    - </span><span style="color:#bf616a;">uses</span><span>: </span><span style="color:#a3be8c;">giraffate/clippy-action@v1
+</span><span>      </span><span style="color:#bf616a;">with</span><span>:
+</span><span>        </span><span style="color:#bf616a;">reporter</span><span>: &#39;</span><span style="color:#a3be8c;">github-pr-review</span><span>&#39;
+</span><span>        </span><span style="color:#bf616a;">github_token</span><span>: </span><span style="color:#a3be8c;">${{ secrets.GITHUB_TOKEN }}
+</span></code></pre>
+<p><a href="https://github.com/reviewdog/reviewdog">reviewdog</a> を使用しているので GitHub へ review comment したり annotation を表示したりするのはこれに任せている。また、reviewdog はその pull request での差分のみをチェックしてくれる機能があるのでプロジェクト途中からの導入も比較的容易ではないかと考えている。</p>
+<p>いくつかバグがあり、ドキュメントがまだまだ不十分だったり、また forked repo の場合は <code>secrets.GITHUB_TOKEN</code> を使用していると権限の関係で想定した動作にならない場合もあるのでいくつか検証も行っているが、自分のプロジェクトではまあ機能しているので既に導入している。</p>
+<p>clippy-action が Clippy 導入のハードルを下げられるようしばらくはメンテを行っていきたいと考えている。</p>
+
+    </div>
+
+    
+    <div class="article-info">
+        
+        <div class="article-date"> 2 December 2022</div>
+        
+        <div class="article-taxonomies">
+            
+                <ul class="article-categories">
+                    
+                    <li><a href="https://mitaka.club/categories/diary/">diary</a></li>
+                    
+                </ul>
+            
+            
+                <ul class="article-tags">
+                    
+                    <li><a href="https://mitaka.club/tags/rust/">#rust</a></li>
+                    
+                </ul>
+            
+        </div>
+    </div>
+
+</article>
+
+
+        </main>
+        <footer>
+            <p>
+                © Mitaka Club 2022<br>
+                Powered by <a target="_blank" href="https://getzola.com/">Zola</a>, Theme <a target="_blank" href="https://github.com/zbrox/anpu-zola-theme">Anpu</a>.
+            </p>
+            <p>
+                
+                
+            </p>
+        </footer>
+    </div>
+</body>
+</html>

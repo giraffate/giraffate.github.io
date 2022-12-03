@@ -9,7 +9,7 @@
     <title>四則演算を逆ポーランド記法で解く(Rust)</title>
     <meta name="description" content="三鷹で活動しているクラブチームです">
 
-    <link rel="stylesheet" href="https:&#x2F;&#x2F;mitaka.club&#x2F;main.css">
+    <link rel="stylesheet" href="https://mitaka.club/main.css">
 
     
         <link rel="alternate" type="application/rss+xml" title="RSS" href="https://mitaka.club/index.xml">
@@ -61,175 +61,175 @@
     </header>
     <div class="content">
         <p>中置記法で書かれた四則演算を<a href="https://ja.wikipedia.org/wiki/%E6%93%8D%E8%BB%8A%E5%A0%B4%E3%82%A2%E3%83%AB%E3%82%B4%E3%83%AA%E3%82%BA%E3%83%A0">操車場アルゴリズム</a>で逆ポーランド記法にしてから計算する。</p>
-<p>Russ Cox の <a href="https://swtch.com/%7Ersc/regexp/regexp1.html">Regular Expression Matching Can Be Simple And Fast</a> を読んでいて正規表現を postfix notation で書き換えるというところがあったがよくわかってなかったので、練習のため四則演算で試しに書いてみた。次の演算子とスタックのトップの演算子を比較して、優先順位が同じかスタックの方が高かったらスタックをポップしてキューに突っ込むところがなるほどとなった。</p>
-<pre style="background-color:#2b303b;">
-<code class="language-rs" data-lang="rs"><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">main</span><span style="color:#c0c5ce;">() {
-    println!(&quot;</span><span style="color:#a3be8c;">Hello, world!</span><span style="color:#c0c5ce;">&quot;);
-}
-
-</span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">lexer</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">s</span><span style="color:#c0c5ce;">: String) -&gt; Vec&lt;String&gt; {
-    </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> ret = Vec::new();
-    </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> num = Vec::new();
-
-    </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> chars: Vec&lt;</span><span style="color:#b48ead;">char</span><span style="color:#c0c5ce;">&gt; = s.</span><span style="color:#96b5b4;">chars</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">collect</span><span style="color:#c0c5ce;">();
-    </span><span style="color:#b48ead;">for</span><span style="color:#c0c5ce;"> i in </span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">..chars.</span><span style="color:#96b5b4;">len</span><span style="color:#c0c5ce;">() {
-        </span><span style="color:#b48ead;">match</span><span style="color:#c0c5ce;"> chars[i] {
-            &#39;</span><span style="color:#a3be8c;">(</span><span style="color:#c0c5ce;">&#39; | &#39;</span><span style="color:#a3be8c;">)</span><span style="color:#c0c5ce;">&#39; | &#39;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&#39; | &#39;</span><span style="color:#a3be8c;">-</span><span style="color:#c0c5ce;">&#39; | &#39;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&#39; | &#39;</span><span style="color:#a3be8c;">/</span><span style="color:#c0c5ce;">&#39; =&gt; ret.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(String::from(chars[i])),
-            n </span><span style="color:#b48ead;">if</span><span style="color:#c0c5ce;"> n.</span><span style="color:#96b5b4;">is_numeric</span><span style="color:#c0c5ce;">() =&gt; {
-                num.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(n);
-            }
-            &#39; &#39; =&gt; {}
-            _ =&gt; panic!(),
-        }
-
-        </span><span style="color:#b48ead;">if </span><span style="color:#c0c5ce;">!num.</span><span style="color:#96b5b4;">is_empty</span><span style="color:#c0c5ce;">() &amp;&amp; i &lt; chars.</span><span style="color:#96b5b4;">len</span><span style="color:#c0c5ce;">() - </span><span style="color:#d08770;">1 </span><span style="color:#c0c5ce;">&amp;&amp; !chars[i + </span><span style="color:#d08770;">1</span><span style="color:#c0c5ce;">].</span><span style="color:#96b5b4;">is_numeric</span><span style="color:#c0c5ce;">() {
-            </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> n: String = num.</span><span style="color:#96b5b4;">iter</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">collect</span><span style="color:#c0c5ce;">();
-            ret.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(n);
-            num = Vec::new();
-        }
-    }
-
-    </span><span style="color:#b48ead;">if </span><span style="color:#c0c5ce;">!num.</span><span style="color:#96b5b4;">is_empty</span><span style="color:#c0c5ce;">() {
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> n: String = num.</span><span style="color:#96b5b4;">iter</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">collect</span><span style="color:#c0c5ce;">();
-        ret.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(n);
-    }
-
-    ret
-}
-
-</span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">to_postfix</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">tokens</span><span style="color:#c0c5ce;">: Vec&lt;String&gt;) -&gt; Vec&lt;String&gt; {
-    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">order</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">s</span><span style="color:#c0c5ce;">: &amp;</span><span style="color:#b48ead;">str</span><span style="color:#c0c5ce;">) -&gt; </span><span style="color:#b48ead;">usize </span><span style="color:#c0c5ce;">{
-        </span><span style="color:#b48ead;">match</span><span style="color:#c0c5ce;"> s {
-            &quot;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&quot; | &quot;</span><span style="color:#a3be8c;">/</span><span style="color:#c0c5ce;">&quot; =&gt; </span><span style="color:#d08770;">3</span><span style="color:#c0c5ce;">,
-            &quot;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&quot; | &quot;</span><span style="color:#a3be8c;">-</span><span style="color:#c0c5ce;">&quot; =&gt; </span><span style="color:#d08770;">2</span><span style="color:#c0c5ce;">,
-            &quot;</span><span style="color:#a3be8c;">(</span><span style="color:#c0c5ce;">&quot; | &quot;</span><span style="color:#a3be8c;">)</span><span style="color:#c0c5ce;">&quot; =&gt; </span><span style="color:#d08770;">1</span><span style="color:#c0c5ce;">,
-            _ =&gt; panic!(),
-        }
-    }
-
-    </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> out: Vec&lt;String&gt; = vec![];
-    </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> stack: Vec&lt;String&gt; = vec![];
-
-    </span><span style="color:#b48ead;">for</span><span style="color:#c0c5ce;"> s in tokens.</span><span style="color:#96b5b4;">into_iter</span><span style="color:#c0c5ce;">() {
-        </span><span style="color:#b48ead;">match</span><span style="color:#c0c5ce;"> s.</span><span style="color:#96b5b4;">as_str</span><span style="color:#c0c5ce;">() {
-            &quot;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&quot; | &quot;</span><span style="color:#a3be8c;">-</span><span style="color:#c0c5ce;">&quot; | &quot;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&quot; | &quot;</span><span style="color:#a3be8c;">/</span><span style="color:#c0c5ce;">&quot; =&gt; {
-                </span><span style="color:#b48ead;">while let </span><span style="color:#c0c5ce;">Some(last) = stack.</span><span style="color:#96b5b4;">last</span><span style="color:#c0c5ce;">() {
-                    </span><span style="color:#b48ead;">if </span><span style="color:#96b5b4;">order</span><span style="color:#c0c5ce;">(last) &gt;= </span><span style="color:#96b5b4;">order</span><span style="color:#c0c5ce;">(&amp;s) {
-                        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> op = stack.</span><span style="color:#96b5b4;">pop</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">();
-                        out.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(op);
-                    } </span><span style="color:#b48ead;">else </span><span style="color:#c0c5ce;">{
-                        </span><span style="color:#b48ead;">break</span><span style="color:#c0c5ce;">;
-                    }
-                }
-
-                stack.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(s);
-            }
-            &quot;</span><span style="color:#a3be8c;">(</span><span style="color:#c0c5ce;">&quot; =&gt; {
-                stack.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(s);
-            }
-            &quot;</span><span style="color:#a3be8c;">)</span><span style="color:#c0c5ce;">&quot; =&gt; </span><span style="color:#b48ead;">loop </span><span style="color:#c0c5ce;">{
-                </span><span style="color:#b48ead;">if </span><span style="color:#c0c5ce;">!stack.</span><span style="color:#96b5b4;">is_empty</span><span style="color:#c0c5ce;">() {
-                    </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> op = stack.</span><span style="color:#96b5b4;">pop</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">();
-                    </span><span style="color:#b48ead;">if</span><span style="color:#c0c5ce;"> op == &quot;</span><span style="color:#a3be8c;">(</span><span style="color:#c0c5ce;">&quot; {
-                        </span><span style="color:#b48ead;">break</span><span style="color:#c0c5ce;">;
-                    } </span><span style="color:#b48ead;">else </span><span style="color:#c0c5ce;">{
-                        out.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(op);
-                    }
-                } </span><span style="color:#b48ead;">else </span><span style="color:#c0c5ce;">{
-                    </span><span style="color:#b48ead;">break</span><span style="color:#c0c5ce;">;
-                }
-            },
-            _ =&gt; out.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(s),
-        }
-    }
-
-    </span><span style="color:#b48ead;">while </span><span style="color:#c0c5ce;">!stack.</span><span style="color:#96b5b4;">is_empty</span><span style="color:#c0c5ce;">() {
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> op = stack.</span><span style="color:#96b5b4;">pop</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">();
-        out.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(op);
-    }
-
-    out
-}
-
-</span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">eval</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">postfix</span><span style="color:#c0c5ce;">: Vec&lt;String&gt;) -&gt; </span><span style="color:#b48ead;">i32 </span><span style="color:#c0c5ce;">{
-    </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> stack: Vec&lt;</span><span style="color:#b48ead;">i32</span><span style="color:#c0c5ce;">&gt; = vec![];
-
-    </span><span style="color:#b48ead;">for</span><span style="color:#c0c5ce;"> s in postfix.</span><span style="color:#96b5b4;">into_iter</span><span style="color:#c0c5ce;">() {
-        </span><span style="color:#b48ead;">match</span><span style="color:#c0c5ce;"> s.</span><span style="color:#96b5b4;">as_str</span><span style="color:#c0c5ce;">() {
-            &quot;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&quot; | &quot;</span><span style="color:#a3be8c;">-</span><span style="color:#c0c5ce;">&quot; | &quot;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&quot; | &quot;</span><span style="color:#a3be8c;">/</span><span style="color:#c0c5ce;">&quot; =&gt; {
-                </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> right = stack.</span><span style="color:#96b5b4;">pop</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">();
-                </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> left = stack.</span><span style="color:#96b5b4;">pop</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">();
-                </span><span style="color:#b48ead;">match</span><span style="color:#c0c5ce;"> s.</span><span style="color:#96b5b4;">as_str</span><span style="color:#c0c5ce;">() {
-                    &quot;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&quot; =&gt; stack.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(left + right),
-                    &quot;</span><span style="color:#a3be8c;">-</span><span style="color:#c0c5ce;">&quot; =&gt; stack.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(left - right),
-                    &quot;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&quot; =&gt; stack.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(left * right),
-                    &quot;</span><span style="color:#a3be8c;">/</span><span style="color:#c0c5ce;">&quot; =&gt; stack.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(left / right),
-                    _ =&gt; panic!(),
-                }
-            }
-            _ =&gt; {
-                stack.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(s.parse::&lt;</span><span style="color:#b48ead;">i32</span><span style="color:#c0c5ce;">&gt;().</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">());
-            }
-        }
-    }
-
-    stack.</span><span style="color:#96b5b4;">pop</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">()
-}
-
-</span><span style="color:#b48ead;">mod </span><span style="color:#c0c5ce;">test {
-    </span><span style="color:#b48ead;">use super</span><span style="color:#c0c5ce;">::*;
-
-    #[</span><span style="color:#bf616a;">test</span><span style="color:#c0c5ce;">]
-    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">lexer_test</span><span style="color:#c0c5ce;">() {
-        assert_eq!(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">12 + 4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()), vec![&quot;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&quot;]);
-        assert_eq!(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">12 - 4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()), vec![&quot;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">-</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&quot;]);
-        assert_eq!(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">12 * 4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()), vec![&quot;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&quot;]);
-        assert_eq!(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">12 / 4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()), vec![&quot;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">/</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&quot;]);
-
-        assert_eq!(
-            </span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">(11 + 1) * 2</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()),
-            vec![&quot;</span><span style="color:#a3be8c;">(</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">11</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">1</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">)</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">2</span><span style="color:#c0c5ce;">&quot;]
-        );
-    }
-
-    #[</span><span style="color:#bf616a;">test</span><span style="color:#c0c5ce;">]
-    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">to_postfix_test</span><span style="color:#c0c5ce;">() {
-        assert_eq!(
-            </span><span style="color:#96b5b4;">to_postfix</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">12 + 4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">())),
-            vec![&quot;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&quot;]
-        );
-        assert_eq!(
-            </span><span style="color:#96b5b4;">to_postfix</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">12 - 4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">())),
-            vec![&quot;</span><span style="color:#a3be8c;">12</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">-</span><span style="color:#c0c5ce;">&quot;]
-        );
-        assert_eq!(
-            </span><span style="color:#96b5b4;">to_postfix</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">(11 + 1) * 2</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">())),
-            vec![&quot;</span><span style="color:#a3be8c;">11</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">1</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">2</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&quot;]
-        );
-        assert_eq!(
-            </span><span style="color:#96b5b4;">to_postfix</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">3 + 4 * 2 / (1 - 5)</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">())),
-            vec![&quot;</span><span style="color:#a3be8c;">3</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">4</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">2</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">1</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">5</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">-</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">/</span><span style="color:#c0c5ce;">&quot;, &quot;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&quot;]
-        );
-    }
-
-    #[</span><span style="color:#bf616a;">test</span><span style="color:#c0c5ce;">]
-    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">eval_test</span><span style="color:#c0c5ce;">() {
-        assert_eq!(</span><span style="color:#96b5b4;">eval</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">to_postfix</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">12 + 4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()))), </span><span style="color:#d08770;">16</span><span style="color:#c0c5ce;">);
-        assert_eq!(</span><span style="color:#96b5b4;">eval</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">to_postfix</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">12 - 4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()))), </span><span style="color:#d08770;">8</span><span style="color:#c0c5ce;">);
-        assert_eq!(</span><span style="color:#96b5b4;">eval</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">to_postfix</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">12 * 4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()))), </span><span style="color:#d08770;">48</span><span style="color:#c0c5ce;">);
-        assert_eq!(</span><span style="color:#96b5b4;">eval</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">to_postfix</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">12 / 4</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()))), </span><span style="color:#d08770;">3</span><span style="color:#c0c5ce;">);
-        assert_eq!(</span><span style="color:#96b5b4;">eval</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">to_postfix</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">(11 + 1) * 2</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()))), </span><span style="color:#d08770;">24</span><span style="color:#c0c5ce;">);
-        assert_eq!(
-            </span><span style="color:#96b5b4;">eval</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">to_postfix</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">3 + 4 * 2 / (1 - 5)</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()))),
-            </span><span style="color:#d08770;">1
-        </span><span style="color:#c0c5ce;">);
-    }
-}
-
-</span></code></pre><h2 id="can-kao">参考</h2>
+<p>Russ Cox の <a href="https://swtch.com/~rsc/regexp/regexp1.html">Regular Expression Matching Can Be Simple And Fast</a> を読んでいて正規表現を postfix notation で書き換えるというところがあったがよくわかってなかったので、練習のため四則演算で試しに書いてみた。次の演算子とスタックのトップの演算子を比較して、優先順位が同じかスタックの方が高かったらスタックをポップしてキューに突っ込むところがなるほどとなった。</p>
+<pre data-lang="rs" style="background-color:#2b303b;color:#c0c5ce;" class="language-rs "><code class="language-rs" data-lang="rs"><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">main</span><span>() {
+</span><span>    println!(&quot;</span><span style="color:#a3be8c;">Hello, world!</span><span>&quot;);
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">lexer</span><span>(</span><span style="color:#bf616a;">s</span><span>: String) -&gt; Vec&lt;String&gt; {
+</span><span>    </span><span style="color:#b48ead;">let mut</span><span> ret = Vec::new();
+</span><span>    </span><span style="color:#b48ead;">let mut</span><span> num = Vec::new();
+</span><span>
+</span><span>    </span><span style="color:#b48ead;">let</span><span> chars: Vec&lt;</span><span style="color:#b48ead;">char</span><span>&gt; = s.</span><span style="color:#96b5b4;">chars</span><span>().</span><span style="color:#96b5b4;">collect</span><span>();
+</span><span>    </span><span style="color:#b48ead;">for</span><span> i in </span><span style="color:#d08770;">0</span><span>..chars.</span><span style="color:#96b5b4;">len</span><span>() {
+</span><span>        </span><span style="color:#b48ead;">match</span><span> chars[i] {
+</span><span>            &#39;</span><span style="color:#a3be8c;">(</span><span>&#39; | &#39;</span><span style="color:#a3be8c;">)</span><span>&#39; | &#39;</span><span style="color:#a3be8c;">+</span><span>&#39; | &#39;</span><span style="color:#a3be8c;">-</span><span>&#39; | &#39;</span><span style="color:#a3be8c;">*</span><span>&#39; | &#39;</span><span style="color:#a3be8c;">/</span><span>&#39; =&gt; ret.</span><span style="color:#96b5b4;">push</span><span>(String::from(chars[i])),
+</span><span>            n </span><span style="color:#b48ead;">if</span><span> n.</span><span style="color:#96b5b4;">is_numeric</span><span>() =&gt; {
+</span><span>                num.</span><span style="color:#96b5b4;">push</span><span>(n);
+</span><span>            }
+</span><span>            &#39; &#39; =&gt; {}
+</span><span>            _ =&gt; panic!(),
+</span><span>        }
+</span><span>
+</span><span>        </span><span style="color:#b48ead;">if </span><span>!num.</span><span style="color:#96b5b4;">is_empty</span><span>() &amp;&amp; i &lt; chars.</span><span style="color:#96b5b4;">len</span><span>() - </span><span style="color:#d08770;">1 </span><span>&amp;&amp; !chars[i + </span><span style="color:#d08770;">1</span><span>].</span><span style="color:#96b5b4;">is_numeric</span><span>() {
+</span><span>            </span><span style="color:#b48ead;">let</span><span> n: String = num.</span><span style="color:#96b5b4;">iter</span><span>().</span><span style="color:#96b5b4;">collect</span><span>();
+</span><span>            ret.</span><span style="color:#96b5b4;">push</span><span>(n);
+</span><span>            num = Vec::new();
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#b48ead;">if </span><span>!num.</span><span style="color:#96b5b4;">is_empty</span><span>() {
+</span><span>        </span><span style="color:#b48ead;">let</span><span> n: String = num.</span><span style="color:#96b5b4;">iter</span><span>().</span><span style="color:#96b5b4;">collect</span><span>();
+</span><span>        ret.</span><span style="color:#96b5b4;">push</span><span>(n);
+</span><span>    }
+</span><span>
+</span><span>    ret
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">to_postfix</span><span>(</span><span style="color:#bf616a;">tokens</span><span>: Vec&lt;String&gt;) -&gt; Vec&lt;String&gt; {
+</span><span>    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">order</span><span>(</span><span style="color:#bf616a;">s</span><span>: &amp;</span><span style="color:#b48ead;">str</span><span>) -&gt; </span><span style="color:#b48ead;">usize </span><span>{
+</span><span>        </span><span style="color:#b48ead;">match</span><span> s {
+</span><span>            &quot;</span><span style="color:#a3be8c;">*</span><span>&quot; | &quot;</span><span style="color:#a3be8c;">/</span><span>&quot; =&gt; </span><span style="color:#d08770;">3</span><span>,
+</span><span>            &quot;</span><span style="color:#a3be8c;">+</span><span>&quot; | &quot;</span><span style="color:#a3be8c;">-</span><span>&quot; =&gt; </span><span style="color:#d08770;">2</span><span>,
+</span><span>            &quot;</span><span style="color:#a3be8c;">(</span><span>&quot; | &quot;</span><span style="color:#a3be8c;">)</span><span>&quot; =&gt; </span><span style="color:#d08770;">1</span><span>,
+</span><span>            _ =&gt; panic!(),
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#b48ead;">let mut</span><span> out: Vec&lt;String&gt; = vec![];
+</span><span>    </span><span style="color:#b48ead;">let mut</span><span> stack: Vec&lt;String&gt; = vec![];
+</span><span>
+</span><span>    </span><span style="color:#b48ead;">for</span><span> s in tokens.</span><span style="color:#96b5b4;">into_iter</span><span>() {
+</span><span>        </span><span style="color:#b48ead;">match</span><span> s.</span><span style="color:#96b5b4;">as_str</span><span>() {
+</span><span>            &quot;</span><span style="color:#a3be8c;">+</span><span>&quot; | &quot;</span><span style="color:#a3be8c;">-</span><span>&quot; | &quot;</span><span style="color:#a3be8c;">*</span><span>&quot; | &quot;</span><span style="color:#a3be8c;">/</span><span>&quot; =&gt; {
+</span><span>                </span><span style="color:#b48ead;">while let </span><span>Some(last) = stack.</span><span style="color:#96b5b4;">last</span><span>() {
+</span><span>                    </span><span style="color:#b48ead;">if </span><span style="color:#96b5b4;">order</span><span>(last) &gt;= </span><span style="color:#96b5b4;">order</span><span>(&amp;s) {
+</span><span>                        </span><span style="color:#b48ead;">let</span><span> op = stack.</span><span style="color:#96b5b4;">pop</span><span>().</span><span style="color:#96b5b4;">unwrap</span><span>();
+</span><span>                        out.</span><span style="color:#96b5b4;">push</span><span>(op);
+</span><span>                    } </span><span style="color:#b48ead;">else </span><span>{
+</span><span>                        </span><span style="color:#b48ead;">break</span><span>;
+</span><span>                    }
+</span><span>                }
+</span><span>
+</span><span>                stack.</span><span style="color:#96b5b4;">push</span><span>(s);
+</span><span>            }
+</span><span>            &quot;</span><span style="color:#a3be8c;">(</span><span>&quot; =&gt; {
+</span><span>                stack.</span><span style="color:#96b5b4;">push</span><span>(s);
+</span><span>            }
+</span><span>            &quot;</span><span style="color:#a3be8c;">)</span><span>&quot; =&gt; </span><span style="color:#b48ead;">loop </span><span>{
+</span><span>                </span><span style="color:#b48ead;">if </span><span>!stack.</span><span style="color:#96b5b4;">is_empty</span><span>() {
+</span><span>                    </span><span style="color:#b48ead;">let</span><span> op = stack.</span><span style="color:#96b5b4;">pop</span><span>().</span><span style="color:#96b5b4;">unwrap</span><span>();
+</span><span>                    </span><span style="color:#b48ead;">if</span><span> op == &quot;</span><span style="color:#a3be8c;">(</span><span>&quot; {
+</span><span>                        </span><span style="color:#b48ead;">break</span><span>;
+</span><span>                    } </span><span style="color:#b48ead;">else </span><span>{
+</span><span>                        out.</span><span style="color:#96b5b4;">push</span><span>(op);
+</span><span>                    }
+</span><span>                } </span><span style="color:#b48ead;">else </span><span>{
+</span><span>                    </span><span style="color:#b48ead;">break</span><span>;
+</span><span>                }
+</span><span>            },
+</span><span>            _ =&gt; out.</span><span style="color:#96b5b4;">push</span><span>(s),
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#b48ead;">while </span><span>!stack.</span><span style="color:#96b5b4;">is_empty</span><span>() {
+</span><span>        </span><span style="color:#b48ead;">let</span><span> op = stack.</span><span style="color:#96b5b4;">pop</span><span>().</span><span style="color:#96b5b4;">unwrap</span><span>();
+</span><span>        out.</span><span style="color:#96b5b4;">push</span><span>(op);
+</span><span>    }
+</span><span>
+</span><span>    out
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">eval</span><span>(</span><span style="color:#bf616a;">postfix</span><span>: Vec&lt;String&gt;) -&gt; </span><span style="color:#b48ead;">i32 </span><span>{
+</span><span>    </span><span style="color:#b48ead;">let mut</span><span> stack: Vec&lt;</span><span style="color:#b48ead;">i32</span><span>&gt; = vec![];
+</span><span>
+</span><span>    </span><span style="color:#b48ead;">for</span><span> s in postfix.</span><span style="color:#96b5b4;">into_iter</span><span>() {
+</span><span>        </span><span style="color:#b48ead;">match</span><span> s.</span><span style="color:#96b5b4;">as_str</span><span>() {
+</span><span>            &quot;</span><span style="color:#a3be8c;">+</span><span>&quot; | &quot;</span><span style="color:#a3be8c;">-</span><span>&quot; | &quot;</span><span style="color:#a3be8c;">*</span><span>&quot; | &quot;</span><span style="color:#a3be8c;">/</span><span>&quot; =&gt; {
+</span><span>                </span><span style="color:#b48ead;">let</span><span> right = stack.</span><span style="color:#96b5b4;">pop</span><span>().</span><span style="color:#96b5b4;">unwrap</span><span>();
+</span><span>                </span><span style="color:#b48ead;">let</span><span> left = stack.</span><span style="color:#96b5b4;">pop</span><span>().</span><span style="color:#96b5b4;">unwrap</span><span>();
+</span><span>                </span><span style="color:#b48ead;">match</span><span> s.</span><span style="color:#96b5b4;">as_str</span><span>() {
+</span><span>                    &quot;</span><span style="color:#a3be8c;">+</span><span>&quot; =&gt; stack.</span><span style="color:#96b5b4;">push</span><span>(left + right),
+</span><span>                    &quot;</span><span style="color:#a3be8c;">-</span><span>&quot; =&gt; stack.</span><span style="color:#96b5b4;">push</span><span>(left - right),
+</span><span>                    &quot;</span><span style="color:#a3be8c;">*</span><span>&quot; =&gt; stack.</span><span style="color:#96b5b4;">push</span><span>(left * right),
+</span><span>                    &quot;</span><span style="color:#a3be8c;">/</span><span>&quot; =&gt; stack.</span><span style="color:#96b5b4;">push</span><span>(left / right),
+</span><span>                    _ =&gt; panic!(),
+</span><span>                }
+</span><span>            }
+</span><span>            _ =&gt; {
+</span><span>                stack.</span><span style="color:#96b5b4;">push</span><span>(s.parse::&lt;</span><span style="color:#b48ead;">i32</span><span>&gt;().</span><span style="color:#96b5b4;">unwrap</span><span>());
+</span><span>            }
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    stack.</span><span style="color:#96b5b4;">pop</span><span>().</span><span style="color:#96b5b4;">unwrap</span><span>()
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">mod </span><span>test {
+</span><span>    </span><span style="color:#b48ead;">use super</span><span>::*;
+</span><span>
+</span><span>    #[</span><span style="color:#bf616a;">test</span><span>]
+</span><span>    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">lexer_test</span><span>() {
+</span><span>        assert_eq!(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">12 + 4</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>()), vec![&quot;</span><span style="color:#a3be8c;">12</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">+</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">4</span><span>&quot;]);
+</span><span>        assert_eq!(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">12 - 4</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>()), vec![&quot;</span><span style="color:#a3be8c;">12</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">-</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">4</span><span>&quot;]);
+</span><span>        assert_eq!(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">12 * 4</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>()), vec![&quot;</span><span style="color:#a3be8c;">12</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">*</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">4</span><span>&quot;]);
+</span><span>        assert_eq!(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">12 / 4</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>()), vec![&quot;</span><span style="color:#a3be8c;">12</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">/</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">4</span><span>&quot;]);
+</span><span>
+</span><span>        assert_eq!(
+</span><span>            </span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">(11 + 1) * 2</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>()),
+</span><span>            vec![&quot;</span><span style="color:#a3be8c;">(</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">11</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">+</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">1</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">)</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">*</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">2</span><span>&quot;]
+</span><span>        );
+</span><span>    }
+</span><span>
+</span><span>    #[</span><span style="color:#bf616a;">test</span><span>]
+</span><span>    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">to_postfix_test</span><span>() {
+</span><span>        assert_eq!(
+</span><span>            </span><span style="color:#96b5b4;">to_postfix</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">12 + 4</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>())),
+</span><span>            vec![&quot;</span><span style="color:#a3be8c;">12</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">4</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">+</span><span>&quot;]
+</span><span>        );
+</span><span>        assert_eq!(
+</span><span>            </span><span style="color:#96b5b4;">to_postfix</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">12 - 4</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>())),
+</span><span>            vec![&quot;</span><span style="color:#a3be8c;">12</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">4</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">-</span><span>&quot;]
+</span><span>        );
+</span><span>        assert_eq!(
+</span><span>            </span><span style="color:#96b5b4;">to_postfix</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">(11 + 1) * 2</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>())),
+</span><span>            vec![&quot;</span><span style="color:#a3be8c;">11</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">1</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">+</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">2</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">*</span><span>&quot;]
+</span><span>        );
+</span><span>        assert_eq!(
+</span><span>            </span><span style="color:#96b5b4;">to_postfix</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">3 + 4 * 2 / (1 - 5)</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>())),
+</span><span>            vec![&quot;</span><span style="color:#a3be8c;">3</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">4</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">2</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">*</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">1</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">5</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">-</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">/</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">+</span><span>&quot;]
+</span><span>        );
+</span><span>    }
+</span><span>
+</span><span>    #[</span><span style="color:#bf616a;">test</span><span>]
+</span><span>    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">eval_test</span><span>() {
+</span><span>        assert_eq!(</span><span style="color:#96b5b4;">eval</span><span>(</span><span style="color:#96b5b4;">to_postfix</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">12 + 4</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>()))), </span><span style="color:#d08770;">16</span><span>);
+</span><span>        assert_eq!(</span><span style="color:#96b5b4;">eval</span><span>(</span><span style="color:#96b5b4;">to_postfix</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">12 - 4</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>()))), </span><span style="color:#d08770;">8</span><span>);
+</span><span>        assert_eq!(</span><span style="color:#96b5b4;">eval</span><span>(</span><span style="color:#96b5b4;">to_postfix</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">12 * 4</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>()))), </span><span style="color:#d08770;">48</span><span>);
+</span><span>        assert_eq!(</span><span style="color:#96b5b4;">eval</span><span>(</span><span style="color:#96b5b4;">to_postfix</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">12 / 4</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>()))), </span><span style="color:#d08770;">3</span><span>);
+</span><span>        assert_eq!(</span><span style="color:#96b5b4;">eval</span><span>(</span><span style="color:#96b5b4;">to_postfix</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">(11 + 1) * 2</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>()))), </span><span style="color:#d08770;">24</span><span>);
+</span><span>        assert_eq!(
+</span><span>            </span><span style="color:#96b5b4;">eval</span><span>(</span><span style="color:#96b5b4;">to_postfix</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">3 + 4 * 2 / (1 - 5)</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>()))),
+</span><span>            </span><span style="color:#d08770;">1
+</span><span>        );
+</span><span>    }
+</span><span>}
+</span><span>
+</span></code></pre>
+<h2 id="can-kao">参考</h2>
 <ul>
 <li><a href="https://ja.wikipedia.org/wiki/%E6%93%8D%E8%BB%8A%E5%A0%B4%E3%82%A2%E3%83%AB%E3%82%B4%E3%83%AA%E3%82%BA%E3%83%A0">操車場アルゴリズム</a></li>
-<li><a href="https://swtch.com/%7Ersc/regexp/regexp1.html">Regular Expression Matching Can Be Simple And Fast</a></li>
+<li><a href="https://swtch.com/~rsc/regexp/regexp1.html">Regular Expression Matching Can Be Simple And Fast</a></li>
 </ul>
 
     </div>
@@ -263,7 +263,7 @@
         </main>
         <footer>
             <p>
-                © Mitaka Club 2021<br>
+                © Mitaka Club 2022<br>
                 Powered by <a target="_blank" href="https://getzola.com/">Zola</a>, Theme <a target="_blank" href="https://github.com/zbrox/anpu-zola-theme">Anpu</a>.
             </p>
             <p>

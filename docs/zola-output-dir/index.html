@@ -9,7 +9,7 @@
     <title>Zolaでoutput_dirを設定で有効にできるようにした</title>
     <meta name="description" content="三鷹で活動しているクラブチームです">
 
-    <link rel="stylesheet" href="https:&#x2F;&#x2F;mitaka.club&#x2F;main.css">
+    <link rel="stylesheet" href="https://mitaka.club/main.css">
 
     
         <link rel="alternate" type="application/rss+xml" title="RSS" href="https://mitaka.club/index.xml">
@@ -66,9 +66,9 @@
 <h2 id="implementation">Implementation</h2>
 <p>Zolaではfeature requestするときはまずdiscourseにスレッドを立てるということだったので上述のスレッドを立てた。メンテナーからいいんじゃないのといったコメントをもらったので<a href="https://github.com/getzola/zola/pull/1200">PR</a>を開いた。それほど難しくもなく実装はすぐに終えることができそのままマージしてもらった。</p>
 <p><code>config.toml</code>に以下のように記載すればフラグを指定しなくても生成先のフォルダを変更できるようになる。</p>
-<pre style="background-color:#2b303b;">
-<code class="language-toml" data-lang="toml"><span style="color:#bf616a;">output_dir </span><span style="color:#c0c5ce;">= &quot;</span><span style="color:#a3be8c;">docs</span><span style="color:#c0c5ce;">&quot;
-</span></code></pre><h2 id="conclusion">Conclusion</h2>
+<pre data-lang="toml" style="background-color:#2b303b;color:#c0c5ce;" class="language-toml "><code class="language-toml" data-lang="toml"><span style="color:#bf616a;">output_dir </span><span>= &quot;</span><span style="color:#a3be8c;">docs</span><span>&quot;
+</span></code></pre>
+<h2 id="conclusion">Conclusion</h2>
 <p>普段はissueベースでパッチを送るのだけど、自分でこの機能がほしいと言って実装したのは初めてだった。前記事でも書いたが多少完成度は低くてもこうやって使いながら不足している機能があればパッチを送って育てていくのは楽しい。</p>
 
     </div>
@@ -102,7 +102,7 @@
         </main>
         <footer>
             <p>
-                © Mitaka Club 2021<br>
+                © Mitaka Club 2022<br>
                 Powered by <a target="_blank" href="https://getzola.com/">Zola</a>, Theme <a target="_blank" href="https://github.com/zbrox/anpu-zola-theme">Anpu</a>.
             </p>
             <p>

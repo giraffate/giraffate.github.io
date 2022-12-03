@@ -9,7 +9,7 @@
     <title>Rust AST 入門</title>
     <meta name="description" content="三鷹で活動しているクラブチームです">
 
-    <link rel="stylesheet" href="https:&#x2F;&#x2F;mitaka.club&#x2F;main.css">
+    <link rel="stylesheet" href="https://mitaka.club/main.css">
 
     
         <link rel="alternate" type="application/rss+xml" title="RSS" href="https://mitaka.club/index.xml">
@@ -68,251 +68,239 @@
 </ul>
 <p>また、AST を確認するというと <a href="https://astexplorer.net/">AST explorer</a> も有用だが、 AST explorer では <a href="https://crates.io/crates/syn">syn</a> が使われているようで、自分はこれをさわったことがないのでここではふれない。似たようなものだとは思うが。</p>
 <p>これより以下では全て下記バージョンで確認をしているが、参照先のドキュメントは nightly のもので変わりうることがあるのでそこはごめんなさいということで。</p>
-<pre style="background-color:#2b303b;">
-<code><span style="color:#c0c5ce;">rustc -V
-rustc 1.59.0-nightly (efec54529 2021-12-04)
-</span></code></pre><h2 id="ast-wojian-temiyou">AST を見てみよう</h2>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>rustc -V
+</span><span>rustc 1.59.0-nightly (efec54529 2021-12-04)
+</span></code></pre>
+<h2 id="ast-wojian-temiyou">AST を見てみよう</h2>
 <p>ここでは Rust で生成される AST をどうやって確認するかを説明する。</p>
 <p>サンプルコードとして以下を考える。</p>
-<pre style="background-color:#2b303b;">
-<code class="language-rust" data-lang="rust"><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">main</span><span style="color:#c0c5ce;">() {
-    </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> x = </span><span style="color:#d08770;">5</span><span style="color:#c0c5ce;">;
-}
+<pre data-lang="rust" style="background-color:#2b303b;color:#c0c5ce;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">main</span><span>() {
+</span><span>    </span><span style="color:#b48ead;">let</span><span> x = </span><span style="color:#d08770;">5</span><span>;
+</span><span>}
 </span></code></pre>
 <p>rustc には unstable compiler option というのがあって、これは <code>rustc --help</code> で確認できるのだが、unstable compiler option を <code>rustc -Z help</code> でさらに確認すると <code>unpretty</code> というオプションがあることがわかる。</p>
-<pre style="background-color:#2b303b;">
-<code><span style="color:#c0c5ce;">    (snip)
-    -Z                                unpretty=val -- present the input source, unstable (and less-pretty) variants;
-        `normal`, `identified`,
-        `expanded`, `expanded,identified`,
-        `expanded,hygiene` (with internal representations),
-        `everybody_loops` (all function bodies replaced with `loop {}`),
-        `ast-tree` (raw AST before expansion),
-        `ast-tree,expanded` (raw AST after expansion),
-        `hir` (the HIR), `hir,identified`,
-        `hir,typed` (HIR with types for each node),
-        `hir-tree` (dump the raw HIR),
-        `mir` (the MIR), or `mir-cfg` (graphviz formatted MIR)
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>    (snip)
+</span><span>    -Z                                unpretty=val -- present the input source, unstable (and less-pretty) variants;
+</span><span>        `normal`, `identified`,
+</span><span>        `expanded`, `expanded,identified`,
+</span><span>        `expanded,hygiene` (with internal representations),
+</span><span>        `everybody_loops` (all function bodies replaced with `loop {}`),
+</span><span>        `ast-tree` (raw AST before expansion),
+</span><span>        `ast-tree,expanded` (raw AST after expansion),
+</span><span>        `hir` (the HIR), `hir,identified`,
+</span><span>        `hir,typed` (HIR with types for each node),
+</span><span>        `hir-tree` (dump the raw HIR),
+</span><span>        `mir` (the MIR), or `mir-cfg` (graphviz formatted MIR)
 </span></code></pre>
 <p>ここで上記のサンプルコードに対して <code>rustc -Zunpretty=ast-tree src/main.rs</code> とコマンドを実行することでで以下のような AST が得られる。</p>
-<pre style="background-color:#2b303b;">
-<code><span style="color:#c0c5ce;">Crate {
-    attrs: [],
-    items: [
-        Item {
-            attrs: [],
-            id: NodeId(4294967040),
-            span: src/main.rs:1:1: 3:2 (#0),
-            vis: Visibility {
-                kind: Inherited,
-                span: no-location (#0),
-                tokens: None,
-            },
-            ident: main#0,
-            kind: Fn(
-                Fn {
-                    defaultness: Final,
-                    generics: Generics {
-                        params: [],
-                        where_clause: WhereClause {
-                            has_where_token: false,
-                            predicates: [],
-                            span: src/main.rs:1:10: 1:10 (#0),
-                        },
-                        span: src/main.rs:1:8: 1:8 (#0),
-                    },
-                    sig: FnSig {
-                        header: FnHeader {
-                            unsafety: No,
-                            asyncness: No,
-                            constness: No,
-                            ext: None,
-                        },
-                        decl: FnDecl {
-                            inputs: [],
-                            output: Default(
-                                src/main.rs:1:11: 1:11 (#0),
-                            ),
-                        },
-                        span: src/main.rs:1:1: 1:10 (#0),
-                    },
-                    body: Some(
-                        Block {
-                            stmts: [
-                                Stmt {
-                                    id: NodeId(4294967040),
-                                    kind: Local(
-                                        Local {
-                                            id: NodeId(4294967040),
-                                            pat: Pat {
-                                                id: NodeId(4294967040),
-                                                kind: Ident(
-                                                    ByValue(
-                                                        Not,
-                                                    ),
-                                                    x#0,
-                                                    None,
-                                                ),
-                                                span: src/main.rs:2:9: 2:10 (#0),
-                                                tokens: None,
-                                            },
-                                            ty: None,
-                                            kind: Init(
-                                                Expr {
-                                                    id: NodeId(4294967040),
-                                                    kind: Lit(
-                                                        Lit {
-                                                            token: Lit {
-                                                                kind: Integer,
-                                                                symbol: &quot;5&quot;,
-                                                                suffix: None,
-                                                            },
-                                                            kind: Int(
-                                                                5,
-                                                                Unsuffixed,
-                                                            ),
-                                                            span: src/main.rs:2:13: 2:14 (#0),
-                                                        },
-                                                    ),
-                                                    span: src/main.rs:2:13: 2:14 (#0),
-                                                    attrs: ThinVec(
-                                                        None,
-                                                    ),
-                                                    tokens: None,
-                                                },
-                                            ),
-                                            span: src/main.rs:2:5: 2:15 (#0),
-                                            attrs: ThinVec(
-                                                None,
-                                            ),
-                                            tokens: None,
-                                        },
-                                    ),
-                                    span: src/main.rs:2:5: 2:15 (#0),
-                                },
-                            ],
-                            id: NodeId(4294967040),
-                            rules: Default,
-                            span: src/main.rs:1:11: 3:2 (#0),
-                            tokens: None,
-                            could_be_bare_literal: false,
-                        },
-                    ),
-                },
-            ),
-            tokens: None,
-        },
-    ],
-    span: src/main.rs:1:1: 3:2 (#0),
-    is_placeholder: None,
-}
-</span></code></pre><h2 id="yi-tong-rijian-teikou">一通り見ていこう</h2>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>Crate {
+</span><span>    attrs: [],
+</span><span>    items: [
+</span><span>        Item {
+</span><span>            attrs: [],
+</span><span>            id: NodeId(4294967040),
+</span><span>            span: src/main.rs:1:1: 3:2 (#0),
+</span><span>            vis: Visibility {
+</span><span>                kind: Inherited,
+</span><span>                span: no-location (#0),
+</span><span>                tokens: None,
+</span><span>            },
+</span><span>            ident: main#0,
+</span><span>            kind: Fn(
+</span><span>                Fn {
+</span><span>                    defaultness: Final,
+</span><span>                    generics: Generics {
+</span><span>                        params: [],
+</span><span>                        where_clause: WhereClause {
+</span><span>                            has_where_token: false,
+</span><span>                            predicates: [],
+</span><span>                            span: src/main.rs:1:10: 1:10 (#0),
+</span><span>                        },
+</span><span>                        span: src/main.rs:1:8: 1:8 (#0),
+</span><span>                    },
+</span><span>                    sig: FnSig {
+</span><span>                        header: FnHeader {
+</span><span>                            unsafety: No,
+</span><span>                            asyncness: No,
+</span><span>                            constness: No,
+</span><span>                            ext: None,
+</span><span>                        },
+</span><span>                        decl: FnDecl {
+</span><span>                            inputs: [],
+</span><span>                            output: Default(
+</span><span>                                src/main.rs:1:11: 1:11 (#0),
+</span><span>                            ),
+</span><span>                        },
+</span><span>                        span: src/main.rs:1:1: 1:10 (#0),
+</span><span>                    },
+</span><span>                    body: Some(
+</span><span>                        Block {
+</span><span>                            stmts: [
+</span><span>                                Stmt {
+</span><span>                                    id: NodeId(4294967040),
+</span><span>                                    kind: Local(
+</span><span>                                        Local {
+</span><span>                                            id: NodeId(4294967040),
+</span><span>                                            pat: Pat {
+</span><span>                                                id: NodeId(4294967040),
+</span><span>                                                kind: Ident(
+</span><span>                                                    ByValue(
+</span><span>                                                        Not,
+</span><span>                                                    ),
+</span><span>                                                    x#0,
+</span><span>                                                    None,
+</span><span>                                                ),
+</span><span>                                                span: src/main.rs:2:9: 2:10 (#0),
+</span><span>                                                tokens: None,
+</span><span>                                            },
+</span><span>                                            ty: None,
+</span><span>                                            kind: Init(
+</span><span>                                                Expr {
+</span><span>                                                    id: NodeId(4294967040),
+</span><span>                                                    kind: Lit(
+</span><span>                                                        Lit {
+</span><span>                                                            token: Lit {
+</span><span>                                                                kind: Integer,
+</span><span>                                                                symbol: &quot;5&quot;,
+</span><span>                                                                suffix: None,
+</span><span>                                                            },
+</span><span>                                                            kind: Int(
+</span><span>                                                                5,
+</span><span>                                                                Unsuffixed,
+</span><span>                                                            ),
+</span><span>                                                            span: src/main.rs:2:13: 2:14 (#0),
+</span><span>                                                        },
+</span><span>                                                    ),
+</span><span>                                                    span: src/main.rs:2:13: 2:14 (#0),
+</span><span>                                                    attrs: ThinVec(
+</span><span>                                                        None,
+</span><span>                                                    ),
+</span><span>                                                    tokens: None,
+</span><span>                                                },
+</span><span>                                            ),
+</span><span>                                            span: src/main.rs:2:5: 2:15 (#0),
+</span><span>                                            attrs: ThinVec(
+</span><span>                                                None,
+</span><span>                                            ),
+</span><span>                                            tokens: None,
+</span><span>                                        },
+</span><span>                                    ),
+</span><span>                                    span: src/main.rs:2:5: 2:15 (#0),
+</span><span>                                },
+</span><span>                            ],
+</span><span>                            id: NodeId(4294967040),
+</span><span>                            rules: Default,
+</span><span>                            span: src/main.rs:1:11: 3:2 (#0),
+</span><span>                            tokens: None,
+</span><span>                            could_be_bare_literal: false,
+</span><span>                        },
+</span><span>                    ),
+</span><span>                },
+</span><span>            ),
+</span><span>            tokens: None,
+</span><span>        },
+</span><span>    ],
+</span><span>    span: src/main.rs:1:1: 3:2 (#0),
+</span><span>    is_placeholder: None,
+</span><span>}
+</span></code></pre>
+<h2 id="yi-tong-rijian-teikou">一通り見ていこう</h2>
 <p>上記で AST を確認できるようになった。ここでは生成された AST とドキュメントを照らし合わせながら読んでいく方法の一例について説明する。ただし、細かいところまでは説明しない。</p>
 <p>流れとしては、トップレベルの <code>Crate</code> から読んでいき、実際のコードにある <code>fn main {}</code> や <code>let x = 5;</code> が AST 上のどこに現れるかについて通して見ていくことにする。</p>
 <p>まずはトップレベルの <a href="https://doc.rust-lang.org/nightly/nightly-rustc/rustc_ast/ast/struct.Crate.html"><code>Crate</code></a> について見てみよう。定義は以下の通りである。</p>
-<pre style="background-color:#2b303b;">
-<code class="language-rust" data-lang="rust"><span style="color:#b48ead;">pub struct </span><span style="color:#c0c5ce;">Crate {
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">attrs</span><span style="color:#c0c5ce;">: Vec&lt;Attribute&gt;,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">items</span><span style="color:#c0c5ce;">: Vec&lt;P&lt;Item&gt;&gt;,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">span</span><span style="color:#c0c5ce;">: Span,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">is_placeholder</span><span style="color:#c0c5ce;">: Option&lt;NodeId&gt;,
-}
+<pre data-lang="rust" style="background-color:#2b303b;color:#c0c5ce;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="color:#b48ead;">pub struct </span><span>Crate {
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">attrs</span><span>: Vec&lt;Attribute&gt;,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">items</span><span>: Vec&lt;P&lt;Item&gt;&gt;,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">span</span><span>: Span,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">is_placeholder</span><span>: Option&lt;NodeId&gt;,
+</span><span>}
 </span></code></pre>
 <p>これは現在作業している crate を示している。いろいろあるが全て見るのは面倒なので重要なところだけ確認したく <code>items</code> に注目する。ということで、次に <a href="https://doc.rust-lang.org/nightly/nightly-rustc/rustc_ast/ast/struct.Item.html"><code>Item</code></a> を見てみよう。</p>
-<pre style="background-color:#2b303b;">
-<code class="language-rust" data-lang="rust"><span style="color:#b48ead;">pub struct </span><span style="color:#c0c5ce;">Item&lt;K = ItemKind&gt; {
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">attrs</span><span style="color:#c0c5ce;">: Vec&lt;Attribute&gt;,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">id</span><span style="color:#c0c5ce;">: NodeId,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">span</span><span style="color:#c0c5ce;">: Span,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">vis</span><span style="color:#c0c5ce;">: Visibility,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">ident</span><span style="color:#c0c5ce;">: Ident,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">kind</span><span style="color:#c0c5ce;">: K,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">tokens</span><span style="color:#c0c5ce;">: Option&lt;LazyTokenStream&gt;,
-}
+<pre data-lang="rust" style="background-color:#2b303b;color:#c0c5ce;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="color:#b48ead;">pub struct </span><span>Item&lt;K = ItemKind&gt; {
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">attrs</span><span>: Vec&lt;Attribute&gt;,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">id</span><span>: NodeId,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">span</span><span>: Span,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">vis</span><span>: Visibility,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">ident</span><span>: Ident,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">kind</span><span>: K,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">tokens</span><span>: Option&lt;LazyTokenStream&gt;,
+</span><span>}
 </span></code></pre>
 <p><code>Item</code> は <code>Crate</code> を構成する要素であり、 <code>mod</code>, <code>use</code>, <code>fn</code> といった宣言などが <code>Item</code> となる。詳細な説明については <a href="https://doc.rust-lang.org/reference/items.html">https://doc.rust-lang.org/reference/items.html</a> を見てもらいたい。</p>
 <p>ここでこのサンプルコードにおける AST で <code>Crate</code> にただ一つ含まれる <code>Item</code> の種類が何か知りたいので <code>kind</code> を確認する。<code>kind</code> は <a href="https://doc.rust-lang.org/nightly/nightly-rustc/rustc_ast/ast/enum.ItemKind.html">ItemKind</a> として定義されており、今回は <code>fn main</code> が唯一コードに含まれるので関数 <code>Fn(Box&lt;Fn&gt;)</code> である。</p>
 <p>次に <a href="https://doc.rust-lang.org/nightly/nightly-rustc/rustc_ast/ast/struct.Fn.html"><code>Fn</code></a> を見てみよう。</p>
-<pre style="background-color:#2b303b;">
-<code class="language-rust" data-lang="rust"><span style="color:#b48ead;">pub struct </span><span style="color:#c0c5ce;">Fn {
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">defaultness</span><span style="color:#c0c5ce;">: Defaultness,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">generics</span><span style="color:#c0c5ce;">: Generics,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">sig</span><span style="color:#c0c5ce;">: FnSig,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">body</span><span style="color:#c0c5ce;">: Option&lt;P&lt;Block&gt;&gt;,
-}
+<pre data-lang="rust" style="background-color:#2b303b;color:#c0c5ce;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="color:#b48ead;">pub struct </span><span>Fn {
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">defaultness</span><span>: Defaultness,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">generics</span><span>: Generics,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">sig</span><span>: FnSig,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">body</span><span>: Option&lt;P&lt;Block&gt;&gt;,
+</span><span>}
 </span></code></pre>
 <p>ここでも色々あるが、関数の中に入りたいので <code>body</code> を見ていく。関数の処理が宣言されない場合もあるようでここでは <code>Option&lt;P&lt;Block&gt;&gt;</code> と定義されており、次に <a href="https://doc.rust-lang.org/nightly/nightly-rustc/rustc_ast/ast/struct.Block.html"><code>Block</code></a> を見ていくことにする。</p>
-<pre style="background-color:#2b303b;">
-<code class="language-rust" data-lang="rust"><span style="color:#b48ead;">pub struct </span><span style="color:#c0c5ce;">Block {
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">stmts</span><span style="color:#c0c5ce;">: Vec&lt;Stmt&gt;,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">id</span><span style="color:#c0c5ce;">: NodeId,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">rules</span><span style="color:#c0c5ce;">: BlockCheckMode,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">span</span><span style="color:#c0c5ce;">: Span,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">tokens</span><span style="color:#c0c5ce;">: Option&lt;LazyTokenStream&gt;,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">could_be_bare_literal</span><span style="color:#c0c5ce;">: </span><span style="color:#b48ead;">bool</span><span style="color:#c0c5ce;">,
-}
+<pre data-lang="rust" style="background-color:#2b303b;color:#c0c5ce;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="color:#b48ead;">pub struct </span><span>Block {
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">stmts</span><span>: Vec&lt;Stmt&gt;,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">id</span><span>: NodeId,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">rules</span><span>: BlockCheckMode,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">span</span><span>: Span,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">tokens</span><span>: Option&lt;LazyTokenStream&gt;,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">could_be_bare_literal</span><span>: </span><span style="color:#b48ead;">bool</span><span>,
+</span><span>}
 </span></code></pre>
 <p>上記と同様にメインとなる <code>stmts</code> は <code>Vec&lt;Stmt&gt;</code> と定義されているので次は <a href="https://doc.rust-lang.org/nightly/nightly-rustc/rustc_ast/ast/struct.Stmt.html"><code>Stmt</code></a> を見ていく。</p>
-<pre style="background-color:#2b303b;">
-<code class="language-rust" data-lang="rust"><span style="color:#b48ead;">pub struct </span><span style="color:#c0c5ce;">Stmt {
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">id</span><span style="color:#c0c5ce;">: NodeId,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">kind</span><span style="color:#c0c5ce;">: StmtKind,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">span</span><span style="color:#c0c5ce;">: Span,
-}
+<pre data-lang="rust" style="background-color:#2b303b;color:#c0c5ce;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="color:#b48ead;">pub struct </span><span>Stmt {
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">id</span><span>: NodeId,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">kind</span><span>: StmtKind,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">span</span><span>: Span,
+</span><span>}
 </span></code></pre>
 <p>ここでの statement は実際のコードでは <code>let x = 5;</code> のことである。let で変数に値を代入しているところである。このため <code>ItemKind</code> のときと同様に <a href="https://doc.rust-lang.org/nightly/nightly-rustc/rustc_ast/ast/enum.StmtKind.html"><code>StmtKind</code></a> を確認すると、ここでは <a href="https://doc.rust-lang.org/nightly/nightly-rustc/rustc_ast/ast/struct.Local.html"><code>Local</code></a> が該当するとわかる。</p>
-<pre style="background-color:#2b303b;">
-<code class="language-rust" data-lang="rust"><span style="color:#b48ead;">pub struct </span><span style="color:#c0c5ce;">Local {
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">id</span><span style="color:#c0c5ce;">: NodeId,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">pat</span><span style="color:#c0c5ce;">: P&lt;Pat&gt;,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">ty</span><span style="color:#c0c5ce;">: Option&lt;P&lt;Ty&gt;&gt;,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">kind</span><span style="color:#c0c5ce;">: LocalKind,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">span</span><span style="color:#c0c5ce;">: Span,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">attrs</span><span style="color:#c0c5ce;">: AttrVec,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">tokens</span><span style="color:#c0c5ce;">: Option&lt;LazyTokenStream&gt;,
-}
+<pre data-lang="rust" style="background-color:#2b303b;color:#c0c5ce;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="color:#b48ead;">pub struct </span><span>Local {
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">id</span><span>: NodeId,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">pat</span><span>: P&lt;Pat&gt;,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">ty</span><span>: Option&lt;P&lt;Ty&gt;&gt;,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">kind</span><span>: LocalKind,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">span</span><span>: Span,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">attrs</span><span>: AttrVec,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">tokens</span><span>: Option&lt;LazyTokenStream&gt;,
+</span><span>}
 </span></code></pre>
 <p>ドキュメントに書いてある <code>Local represents a let statement, e.g., let &lt;pat&gt;:&lt;ty&gt; = &lt;expr&gt;;.</code> を見てもらえると直感的でわかりやすいと思う。つまり実際のコードにおける <code>let x = 5;</code> との対応を考えれば良いので、<code>&lt;pat&gt;</code> は <code>x</code>、<code>&lt;ty&gt;</code> は今回はなし、<code>&lt;expr&gt;</code> は <code>5</code> と対応することがわかる。では次は <a href="https://doc.rust-lang.org/nightly/nightly-rustc/rustc_ast/ast/struct.Pat.html"><code>Pat</code></a> を見てみよう。</p>
-<pre style="background-color:#2b303b;">
-<code class="language-rust" data-lang="rust"><span style="color:#b48ead;">pub struct </span><span style="color:#c0c5ce;">Pat {
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">id</span><span style="color:#c0c5ce;">: NodeId,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">kind</span><span style="color:#c0c5ce;">: PatKind,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">span</span><span style="color:#c0c5ce;">: Span,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">tokens</span><span style="color:#c0c5ce;">: Option&lt;LazyTokenStream&gt;,
-}
+<pre data-lang="rust" style="background-color:#2b303b;color:#c0c5ce;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="color:#b48ead;">pub struct </span><span>Pat {
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">id</span><span>: NodeId,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">kind</span><span>: PatKind,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">span</span><span>: Span,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">tokens</span><span>: Option&lt;LazyTokenStream&gt;,
+</span><span>}
 </span></code></pre>
 <p>同様にして <a href="https://doc.rust-lang.org/nightly/nightly-rustc/rustc_ast/ast/enum.PatKind.html"><code>PatKind</code></a> を確認するとここでは単なる変数宣言なので <code>Ident</code> に該当する。また、AST でも該当の部分を確認すると変数宣言した <code>x</code> が確認できる。</p>
 <p>次に <code>&lt;expr&gt;</code> に該当する部分だが <code>Local</code> の定義に <code>expr</code> はなくここでは <a href="https://doc.rust-lang.org/nightly/nightly-rustc/rustc_ast/ast/enum.LocalKind.html"><code>LocalKind</code></a>を確認する。これもドキュメントを見ると直感的でわかりやすいが <code>Init(P&lt;Expr&gt;)</code> が今回のものに該当し <a href="https://doc.rust-lang.org/nightly/nightly-rustc/rustc_ast/ast/struct.Expr.html"><code>Expr</code></a> を見ればいい。</p>
-<pre style="background-color:#2b303b;">
-<code class="language-rust" data-lang="rust"><span style="color:#b48ead;">pub struct </span><span style="color:#c0c5ce;">Expr {
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">id</span><span style="color:#c0c5ce;">: NodeId,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">kind</span><span style="color:#c0c5ce;">: ExprKind,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">span</span><span style="color:#c0c5ce;">: Span,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">attrs</span><span style="color:#c0c5ce;">: AttrVec,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">tokens</span><span style="color:#c0c5ce;">: Option&lt;LazyTokenStream&gt;,
-}
+<pre data-lang="rust" style="background-color:#2b303b;color:#c0c5ce;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="color:#b48ead;">pub struct </span><span>Expr {
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">id</span><span>: NodeId,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">kind</span><span>: ExprKind,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">span</span><span>: Span,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">attrs</span><span>: AttrVec,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">tokens</span><span>: Option&lt;LazyTokenStream&gt;,
+</span><span>}
 </span></code></pre>
 <p><code>Expr</code> と <code>Stmt</code> の詳細ついては <a href="https://doc.rust-lang.org/reference/statements-and-expressions.html">https://doc.rust-lang.org/reference/statements-and-expressions.html</a> を見てほしい。</p>
 <p><code>5</code> に該当する <a href="https://doc.rust-lang.org/nightly/nightly-rustc/rustc_ast/ast/enum.ExprKind.html"><code>ExprKind</code></a> を探すといい。ここでは literal である <a href="https://doc.rust-lang.org/nightly/nightly-rustc/rustc_ast/ast/struct.Lit.html"><code>Lit</code></a>。</p>
-<pre style="background-color:#2b303b;">
-<code class="language-rust" data-lang="rust"><span style="color:#b48ead;">pub struct </span><span style="color:#c0c5ce;">Lit {
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">token</span><span style="color:#c0c5ce;">: Lit,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">kind</span><span style="color:#c0c5ce;">: LitKind,
-    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">span</span><span style="color:#c0c5ce;">: Span,
-}
+<pre data-lang="rust" style="background-color:#2b303b;color:#c0c5ce;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="color:#b48ead;">pub struct </span><span>Lit {
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">token</span><span>: Lit,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">kind</span><span>: LitKind,
+</span><span>    </span><span style="color:#b48ead;">pub </span><span style="color:#bf616a;">span</span><span>: Span,
+</span><span>}
 </span></code></pre>
 <p>繰り返しばかりで少し面倒だがだいたい <code>XxxKind</code> のところを見れば大まかな構造がわかると思う。<a href="https://doc.rust-lang.org/nightly/nightly-rustc/rustc_ast/ast/enum.LitKind.html"><code>LitKind</code></a> を確認する。</p>
-<pre style="background-color:#2b303b;">
-<code class="language-rust" data-lang="rust"><span style="color:#b48ead;">pub enum </span><span style="color:#c0c5ce;">LitKind {
-    Str(Symbol, StrStyle),
-    ByteStr(Lrc&lt;[</span><span style="color:#b48ead;">u8</span><span style="color:#c0c5ce;">]&gt;),
-    Byte(</span><span style="color:#b48ead;">u8</span><span style="color:#c0c5ce;">),
-    Char(</span><span style="color:#b48ead;">char</span><span style="color:#c0c5ce;">),
-    Int(</span><span style="color:#b48ead;">u128</span><span style="color:#c0c5ce;">, LitIntType),
-    Float(Symbol, LitFloatType),
-    Bool(</span><span style="color:#b48ead;">bool</span><span style="color:#c0c5ce;">),
-    Err(Symbol),
-}
+<pre data-lang="rust" style="background-color:#2b303b;color:#c0c5ce;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="color:#b48ead;">pub enum </span><span>LitKind {
+</span><span>    Str(Symbol, StrStyle),
+</span><span>    ByteStr(Lrc&lt;[</span><span style="color:#b48ead;">u8</span><span>]&gt;),
+</span><span>    Byte(</span><span style="color:#b48ead;">u8</span><span>),
+</span><span>    Char(</span><span style="color:#b48ead;">char</span><span>),
+</span><span>    Int(</span><span style="color:#b48ead;">u128</span><span>, LitIntType),
+</span><span>    Float(Symbol, LitFloatType),
+</span><span>    Bool(</span><span style="color:#b48ead;">bool</span><span>),
+</span><span>    Err(Symbol),
+</span><span>}
 </span></code></pre>
 <p>ここでは単なる <code>5</code> なので <code>Int</code> となる。</p>
 <h2 id="zhong-warini">終わりに</h2>
@@ -349,7 +337,7 @@ rustc 1.59.0-nightly (efec54529 2021-12-04)
         </main>
         <footer>
             <p>
-                © Mitaka Club 2021<br>
+                © Mitaka Club 2022<br>
                 Powered by <a target="_blank" href="https://getzola.com/">Zola</a>, Theme <a target="_blank" href="https://github.com/zbrox/anpu-zola-theme">Anpu</a>.
             </p>
             <p>

@@ -9,7 +9,7 @@
     <title>正規表現マッチャをNFAで書く</title>
     <meta name="description" content="三鷹で活動しているクラブチームです">
 
-    <link rel="stylesheet" href="https:&#x2F;&#x2F;mitaka.club&#x2F;main.css">
+    <link rel="stylesheet" href="https://mitaka.club/main.css">
 
     
         <link rel="alternate" type="application/rss+xml" title="RSS" href="https://mitaka.club/index.xml">
@@ -60,7 +60,7 @@
         <h1>正規表現マッチャをNFAで書く</h1>
     </header>
     <div class="content">
-        <p><a href="https://swtch.com/%7Ersc/regexp/regexp1.html">Regular Expression Matching Can Be Simple And Fast</a> を読んでいる。正規表現を NFA に変換して評価するが、<code>a?^na^n</code> という正規表現に対して recursive backtracking なアプローチだと全てのノードを走査することがあるので <code>O(2^n)</code> の計算量がかかる一方で、ここで紹介されている Ken Thompson's algorithm では各ステップごとにありうるすべての状態をリストに保持するので <code>O(mn)</code> で済むとされている(テキストのサイズが <code>m</code>)。</p>
+        <p><a href="https://swtch.com/~rsc/regexp/regexp1.html">Regular Expression Matching Can Be Simple And Fast</a> を読んでいる。正規表現を NFA に変換して評価するが、<code>a?^na^n</code> という正規表現に対して recursive backtracking なアプローチだと全てのノードを走査することがあるので <code>O(2^n)</code> の計算量がかかる一方で、ここで紹介されている Ken Thompson's algorithm では各ステップごとにありうるすべての状態をリストに保持するので <code>O(mn)</code> で済むとされている(テキストのサイズが <code>m</code>)。</p>
 <p>一旦正規表現から NFA を作るところまで読み終わって、いつも通り Rust で書き直した。簡単な正規表現、テスト抜きで300行くらいだしオートマトンの実例としていい題材だった。サポートされている記法は以下の通り。</p>
 <table><thead><tr><th>文字</th><th>意味</th></tr></thead><tbody>
 <tr><td>c</td><td>文字cそのもの</td></tr>
@@ -69,453 +69,453 @@
 <tr><td>*</td><td>直前の文字の0回以上の反復</td></tr>
 <tr><td>?</td><td>直前の文字の0 or 1回の表示</td></tr>
 </tbody></table>
-<pre style="background-color:#2b303b;">
-<code class="language-rs" data-lang="rs"><span style="color:#b48ead;">use </span><span style="color:#c0c5ce;">std::cell::{Cell, RefCell};
-</span><span style="color:#b48ead;">use </span><span style="color:#c0c5ce;">std::rc::Rc;
-</span><span style="color:#b48ead;">use </span><span style="color:#c0c5ce;">std::vec;
-
-</span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">main</span><span style="color:#c0c5ce;">() {
-    println!(&quot;</span><span style="color:#a3be8c;">Hello, world!</span><span style="color:#c0c5ce;">&quot;);
-}
-
-</span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">lexer</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">s</span><span style="color:#c0c5ce;">: &amp;</span><span style="color:#b48ead;">str</span><span style="color:#c0c5ce;">) -&gt; Vec&lt;</span><span style="color:#b48ead;">char</span><span style="color:#c0c5ce;">&gt; {
-    </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> out: Vec&lt;</span><span style="color:#b48ead;">char</span><span style="color:#c0c5ce;">&gt; = Vec::new();
-
-    </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> s = s.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">();
-    </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> iter = s.</span><span style="color:#96b5b4;">chars</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">peekable</span><span style="color:#c0c5ce;">();
-    </span><span style="color:#b48ead;">while let </span><span style="color:#c0c5ce;">Some(c) = iter.</span><span style="color:#96b5b4;">next</span><span style="color:#c0c5ce;">() {
-        out.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(c);
-
-        </span><span style="color:#b48ead;">if</span><span style="color:#c0c5ce;"> c == &#39;</span><span style="color:#a3be8c;">(</span><span style="color:#c0c5ce;">&#39; || c == &#39;</span><span style="color:#a3be8c;">|</span><span style="color:#c0c5ce;">&#39; {
-            </span><span style="color:#b48ead;">continue</span><span style="color:#c0c5ce;">;
-        }
-
-        </span><span style="color:#b48ead;">if let </span><span style="color:#c0c5ce;">Some(peek) = iter.</span><span style="color:#96b5b4;">peek</span><span style="color:#c0c5ce;">() {
-            </span><span style="color:#b48ead;">match</span><span style="color:#c0c5ce;"> peek {
-                &#39;</span><span style="color:#a3be8c;">|</span><span style="color:#c0c5ce;">&#39; | &#39;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&#39; | &#39;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&#39; | &#39;</span><span style="color:#a3be8c;">?</span><span style="color:#c0c5ce;">&#39; | &#39;</span><span style="color:#a3be8c;">)</span><span style="color:#c0c5ce;">&#39; =&gt; {}
-                _ =&gt; out.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(&#39;</span><span style="color:#a3be8c;">.</span><span style="color:#c0c5ce;">&#39;),
-            }
-        }
-    }
-
-    out
-}
-
-</span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">re2post</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">re</span><span style="color:#c0c5ce;">: Vec&lt;</span><span style="color:#b48ead;">char</span><span style="color:#c0c5ce;">&gt;) -&gt; Vec&lt;</span><span style="color:#b48ead;">char</span><span style="color:#c0c5ce;">&gt; {
-    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">precedence</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">c</span><span style="color:#c0c5ce;">: </span><span style="color:#b48ead;">char</span><span style="color:#c0c5ce;">) -&gt; </span><span style="color:#b48ead;">usize </span><span style="color:#c0c5ce;">{
-        </span><span style="color:#b48ead;">match</span><span style="color:#c0c5ce;"> c {
-            &#39;</span><span style="color:#a3be8c;">(</span><span style="color:#c0c5ce;">&#39; | &#39;</span><span style="color:#a3be8c;">)</span><span style="color:#c0c5ce;">&#39; =&gt; </span><span style="color:#d08770;">1</span><span style="color:#c0c5ce;">,
-            &#39;</span><span style="color:#a3be8c;">|</span><span style="color:#c0c5ce;">&#39; =&gt; </span><span style="color:#d08770;">2</span><span style="color:#c0c5ce;">,
-            &#39;</span><span style="color:#a3be8c;">.</span><span style="color:#c0c5ce;">&#39; =&gt; </span><span style="color:#d08770;">3</span><span style="color:#c0c5ce;">, </span><span style="color:#65737e;">// concat
-            </span><span style="color:#c0c5ce;">&#39;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&#39; | &#39;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&#39; | &#39;</span><span style="color:#a3be8c;">?</span><span style="color:#c0c5ce;">&#39; =&gt; </span><span style="color:#d08770;">4</span><span style="color:#c0c5ce;">,
-            _ =&gt; </span><span style="color:#d08770;">6</span><span style="color:#c0c5ce;">,
-        }
-    }
-
-    </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> out: Vec&lt;</span><span style="color:#b48ead;">char</span><span style="color:#c0c5ce;">&gt; = Vec::new();
-    </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> stack: Vec&lt;</span><span style="color:#b48ead;">char</span><span style="color:#c0c5ce;">&gt; = Vec::new();
-
-    </span><span style="color:#b48ead;">for</span><span style="color:#c0c5ce;"> c in re.</span><span style="color:#96b5b4;">iter</span><span style="color:#c0c5ce;">() {
-        </span><span style="color:#b48ead;">match</span><span style="color:#c0c5ce;"> c {
-            &#39;</span><span style="color:#a3be8c;">(</span><span style="color:#c0c5ce;">&#39; =&gt; stack.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(*c),
-            &#39;</span><span style="color:#a3be8c;">)</span><span style="color:#c0c5ce;">&#39; =&gt; {
-                </span><span style="color:#b48ead;">while</span><span style="color:#c0c5ce;"> stack.</span><span style="color:#96b5b4;">last</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">is_some</span><span style="color:#c0c5ce;">() &amp;&amp; *stack.</span><span style="color:#96b5b4;">last</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">() != &#39;</span><span style="color:#a3be8c;">(</span><span style="color:#c0c5ce;">&#39; {
-                    </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> op = stack.</span><span style="color:#96b5b4;">pop</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">();
-                    out.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(op);
-                }
-                </span><span style="color:#65737e;">// pop &#39;(&#39;
-</span><span style="color:#c0c5ce;">                stack.</span><span style="color:#96b5b4;">pop</span><span style="color:#c0c5ce;">();
-            }
-            &#39;</span><span style="color:#a3be8c;">.</span><span style="color:#c0c5ce;">&#39; | &#39;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&#39; | &#39;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&#39; | &#39;</span><span style="color:#a3be8c;">?</span><span style="color:#c0c5ce;">&#39; | &#39;</span><span style="color:#a3be8c;">|</span><span style="color:#c0c5ce;">&#39; =&gt; {
-                </span><span style="color:#b48ead;">while let </span><span style="color:#c0c5ce;">Some(last) = stack.</span><span style="color:#96b5b4;">last</span><span style="color:#c0c5ce;">() {
-                    </span><span style="color:#b48ead;">if </span><span style="color:#96b5b4;">precedence</span><span style="color:#c0c5ce;">(*last) &gt;= </span><span style="color:#96b5b4;">precedence</span><span style="color:#c0c5ce;">(*c) {
-                        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> op = stack.</span><span style="color:#96b5b4;">pop</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">();
-                        out.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(op);
-                    } </span><span style="color:#b48ead;">else </span><span style="color:#c0c5ce;">{
-                        </span><span style="color:#b48ead;">break</span><span style="color:#c0c5ce;">;
-                    }
-                }
-                stack.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(*c);
-            }
-            _ =&gt; out.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(*c),
-        }
-    }
-
-    </span><span style="color:#b48ead;">while</span><span style="color:#c0c5ce;"> stack.</span><span style="color:#96b5b4;">last</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">is_some</span><span style="color:#c0c5ce;">() {
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> op = stack.</span><span style="color:#96b5b4;">pop</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">();
-        out.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(op);
-    }
-
-    out
-}
-
-#[</span><span style="color:#bf616a;">derive</span><span style="color:#c0c5ce;">(Debug)]
-</span><span style="color:#b48ead;">struct </span><span style="color:#c0c5ce;">State {
-    </span><span style="color:#bf616a;">kind</span><span style="color:#c0c5ce;">: StateKind,
-    </span><span style="color:#bf616a;">out</span><span style="color:#c0c5ce;">: Rc&lt;RefCell&lt;Option&lt;Rc&lt;State&gt;&gt;&gt;&gt;,
-    </span><span style="color:#bf616a;">out1</span><span style="color:#c0c5ce;">: Rc&lt;RefCell&lt;Option&lt;Rc&lt;State&gt;&gt;&gt;&gt;,
-    </span><span style="color:#bf616a;">list_id</span><span style="color:#c0c5ce;">: Cell&lt;</span><span style="color:#b48ead;">usize</span><span style="color:#c0c5ce;">&gt;,
-}
-
-#[</span><span style="color:#bf616a;">derive</span><span style="color:#c0c5ce;">(Debug)]
-</span><span style="color:#b48ead;">enum </span><span style="color:#c0c5ce;">StateKind {
-    Lit(</span><span style="color:#b48ead;">char</span><span style="color:#c0c5ce;">),
-    Split,
-    Match,
-}
-
-#[</span><span style="color:#bf616a;">derive</span><span style="color:#c0c5ce;">(Debug)]
-</span><span style="color:#b48ead;">struct </span><span style="color:#c0c5ce;">Fragment {
-    </span><span style="color:#bf616a;">start</span><span style="color:#c0c5ce;">: Rc&lt;State&gt;,
-    </span><span style="color:#bf616a;">outs</span><span style="color:#c0c5ce;">: Vec&lt;Rc&lt;RefCell&lt;Option&lt;Rc&lt;State&gt;&gt;&gt;&gt;&gt;,
-}
-
-</span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">post2nfa</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">post</span><span style="color:#c0c5ce;">: Vec&lt;</span><span style="color:#b48ead;">char</span><span style="color:#c0c5ce;">&gt;) -&gt; Rc&lt;State&gt; {
-    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">patch</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">outs</span><span style="color:#c0c5ce;">: Vec&lt;Rc&lt;RefCell&lt;Option&lt;Rc&lt;State&gt;&gt;&gt;&gt;&gt;, </span><span style="color:#bf616a;">start</span><span style="color:#c0c5ce;">: Rc&lt;State&gt;) {
-        </span><span style="color:#b48ead;">for</span><span style="color:#c0c5ce;"> out in outs {
-            *out.</span><span style="color:#96b5b4;">borrow_mut</span><span style="color:#c0c5ce;">() = Some(Rc::clone(&amp;start));
-        }
-    }
-
-    </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> stack: Vec&lt;Fragment&gt; = Vec::new();
-
-    </span><span style="color:#b48ead;">for</span><span style="color:#c0c5ce;"> c in post {
-        </span><span style="color:#b48ead;">match</span><span style="color:#c0c5ce;"> c {
-            &#39;</span><span style="color:#a3be8c;">.</span><span style="color:#c0c5ce;">&#39; =&gt; {
-                </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> e2 = stack.</span><span style="color:#96b5b4;">pop</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">();
-                </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> e1 = stack.</span><span style="color:#96b5b4;">pop</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">();
-                </span><span style="color:#96b5b4;">patch</span><span style="color:#c0c5ce;">(e1.outs.</span><span style="color:#96b5b4;">clone</span><span style="color:#c0c5ce;">(), Rc::clone(&amp;e2.start));
-                stack.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(Fragment {
-                    start: e1.start,
-                    outs: e2.outs,
-                })
-            }
-            &#39;</span><span style="color:#a3be8c;">|</span><span style="color:#c0c5ce;">&#39; =&gt; {
-                </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> e2 = stack.</span><span style="color:#96b5b4;">pop</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">();
-                </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> e1 = stack.</span><span style="color:#96b5b4;">pop</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">();
-                </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> s = State {
-                    kind: StateKind::Split,
-                    out: Rc::new(RefCell::new(Some(Rc::clone(&amp;e1.start)))),
-                    out1: Rc::new(RefCell::new(Some(Rc::clone(&amp;e2.start)))),
-                    list_id: Cell::new(</span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">),
-                };
-                stack.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(Fragment {
-                    start: Rc::new(s),
-                    outs: e1
-                        .outs
-                        .</span><span style="color:#96b5b4;">iter</span><span style="color:#c0c5ce;">()
-                        .</span><span style="color:#96b5b4;">chain</span><span style="color:#c0c5ce;">(e2.outs.</span><span style="color:#96b5b4;">iter</span><span style="color:#c0c5ce;">())
-                        .</span><span style="color:#96b5b4;">map</span><span style="color:#c0c5ce;">(|</span><span style="color:#bf616a;">out</span><span style="color:#c0c5ce;">| Rc::clone(out))
-                        .collect::&lt;Vec&lt;_&gt;&gt;(),
-                })
-            }
-            &#39;</span><span style="color:#a3be8c;">?</span><span style="color:#c0c5ce;">&#39; =&gt; {
-                </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> e = stack.</span><span style="color:#96b5b4;">pop</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">();
-                </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> s = State {
-                    kind: StateKind::Split,
-                    out: Rc::new(RefCell::new(Some(Rc::clone(&amp;e.start)))),
-                    out1: Rc::new(RefCell::new(None)),
-                    list_id: Cell::new(</span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">),
-                };
-                </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> outs = e
-                    .outs
-                    .</span><span style="color:#96b5b4;">iter</span><span style="color:#c0c5ce;">()
-                    .</span><span style="color:#96b5b4;">chain</span><span style="color:#c0c5ce;">(vec![Rc::clone(&amp;s.out1)].</span><span style="color:#96b5b4;">iter</span><span style="color:#c0c5ce;">())
-                    .</span><span style="color:#96b5b4;">map</span><span style="color:#c0c5ce;">(|</span><span style="color:#bf616a;">out</span><span style="color:#c0c5ce;">| Rc::clone(out))
-                    .collect::&lt;Vec&lt;_&gt;&gt;();
-                stack.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(Fragment {
-                    start: Rc::new(s),
-                    outs,
-                })
-            }
-            &#39;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&#39; =&gt; {
-                </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> e = stack.</span><span style="color:#96b5b4;">pop</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">();
-                </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> s = Rc::new(State {
-                    kind: StateKind::Split,
-                    out: Rc::new(RefCell::new(Some(Rc::clone(&amp;e.start)))),
-                    out1: Rc::new(RefCell::new(None)),
-                    list_id: Cell::new(</span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">),
-                });
-                </span><span style="color:#96b5b4;">patch</span><span style="color:#c0c5ce;">(e.outs, Rc::clone(&amp;s));
-                </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> out = Rc::clone(&amp;s.out1);
-                stack.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(Fragment {
-                    start: s,
-                    outs: vec![out],
-                })
-            }
-            &#39;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&#39; =&gt; {
-                </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> e = stack.</span><span style="color:#96b5b4;">pop</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">();
-                </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> s = Rc::new(State {
-                    kind: StateKind::Split,
-                    out: Rc::new(RefCell::new(Some(Rc::clone(&amp;e.start)))),
-                    out1: Rc::new(RefCell::new(None)),
-                    list_id: Cell::new(</span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">),
-                });
-                </span><span style="color:#96b5b4;">patch</span><span style="color:#c0c5ce;">(e.outs, Rc::clone(&amp;s));
-                </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> out = Rc::clone(&amp;s.out1);
-                stack.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(Fragment {
-                    start: e.start,
-                    outs: vec![out],
-                })
-            }
-            _ =&gt; {
-                </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> s = State {
-                    kind: StateKind::Lit(c),
-                    out: Rc::new(RefCell::new(None)),
-                    out1: Rc::new(RefCell::new(None)),
-                    list_id: Cell::new(</span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">),
-                };
-
-                </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> out = Rc::clone(&amp;s.out);
-                </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> f = Fragment {
-                    start: Rc::new(s),
-                    outs: vec![out],
-                };
-                stack.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(f);
-            }
-        }
-    }
-
-    </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> e = stack.</span><span style="color:#96b5b4;">pop</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">();
-    </span><span style="color:#96b5b4;">patch</span><span style="color:#c0c5ce;">(
-        e.outs,
-        Rc::new(State {
-            kind: StateKind::Match,
-            out: Rc::new(RefCell::new(None)),
-            out1: Rc::new(RefCell::new(None)),
-            list_id: Cell::new(</span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">),
-        }),
-    );
-    e.start
-}
-
-</span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">matches</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">start</span><span style="color:#c0c5ce;">: Rc&lt;State&gt;, </span><span style="color:#bf616a;">s</span><span style="color:#c0c5ce;">: &amp;</span><span style="color:#b48ead;">str</span><span style="color:#c0c5ce;">) -&gt; </span><span style="color:#b48ead;">bool </span><span style="color:#c0c5ce;">{
-    </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> chars = s.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">chars</span><span style="color:#c0c5ce;">().collect::&lt;Vec&lt;</span><span style="color:#b48ead;">char</span><span style="color:#c0c5ce;">&gt;&gt;();
-    </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> cnt: </span><span style="color:#b48ead;">usize </span><span style="color:#c0c5ce;">= </span><span style="color:#d08770;">1</span><span style="color:#c0c5ce;">;
-    </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> clist: Vec&lt;Rc&lt;State&gt;&gt; = Vec::new();
-    </span><span style="color:#96b5b4;">add_state</span><span style="color:#c0c5ce;">(&amp;</span><span style="color:#b48ead;">mut</span><span style="color:#c0c5ce;"> clist, &amp;start, &amp;</span><span style="color:#b48ead;">mut</span><span style="color:#c0c5ce;"> cnt);
-    cnt += </span><span style="color:#d08770;">1</span><span style="color:#c0c5ce;">;
-    </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> nlist: Vec&lt;Rc&lt;State&gt;&gt; = Vec::new();
-
-    </span><span style="color:#b48ead;">for</span><span style="color:#c0c5ce;"> c in chars {
-        </span><span style="color:#96b5b4;">step</span><span style="color:#c0c5ce;">(&amp;clist, &amp;</span><span style="color:#b48ead;">mut</span><span style="color:#c0c5ce;"> nlist, c, &amp;</span><span style="color:#b48ead;">mut</span><span style="color:#c0c5ce;"> cnt);
-        std::mem::swap(&amp;</span><span style="color:#b48ead;">mut</span><span style="color:#c0c5ce;"> clist, &amp;</span><span style="color:#b48ead;">mut</span><span style="color:#c0c5ce;"> nlist);
-    }
-
-    </span><span style="color:#96b5b4;">is_match</span><span style="color:#c0c5ce;">(&amp;clist)
-}
-
-</span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">is_match</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">nlist</span><span style="color:#c0c5ce;">: &amp;[Rc&lt;State&gt;]) -&gt; </span><span style="color:#b48ead;">bool </span><span style="color:#c0c5ce;">{
-    </span><span style="color:#b48ead;">for</span><span style="color:#c0c5ce;"> state in nlist {
-        </span><span style="color:#b48ead;">if let </span><span style="color:#c0c5ce;">StateKind::Match = state.kind {
-            </span><span style="color:#b48ead;">return </span><span style="color:#d08770;">true</span><span style="color:#c0c5ce;">;
-        }
-    }
-
-    </span><span style="color:#d08770;">false
-</span><span style="color:#c0c5ce;">}
-
-</span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">step</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">clist</span><span style="color:#c0c5ce;">: &amp;[Rc&lt;State&gt;], </span><span style="color:#bf616a;">nlist</span><span style="color:#c0c5ce;">: &amp;</span><span style="color:#b48ead;">mut </span><span style="color:#c0c5ce;">Vec&lt;Rc&lt;State&gt;&gt;, </span><span style="color:#bf616a;">c</span><span style="color:#c0c5ce;">: </span><span style="color:#b48ead;">char</span><span style="color:#c0c5ce;">, </span><span style="color:#bf616a;">cnt</span><span style="color:#c0c5ce;">: &amp;</span><span style="color:#b48ead;">mut usize</span><span style="color:#c0c5ce;">) {
-    *cnt += </span><span style="color:#d08770;">1</span><span style="color:#c0c5ce;">;
-    nlist.</span><span style="color:#96b5b4;">clear</span><span style="color:#c0c5ce;">();
-    </span><span style="color:#b48ead;">for</span><span style="color:#c0c5ce;"> state in clist {
-        </span><span style="color:#b48ead;">match</span><span style="color:#c0c5ce;"> state.kind {
-            StateKind::Lit(lit) </span><span style="color:#b48ead;">if</span><span style="color:#c0c5ce;"> lit == c =&gt; {
-                </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> s = Rc::clone(state);
-                </span><span style="color:#96b5b4;">add_state</span><span style="color:#c0c5ce;">(nlist, s.out.</span><span style="color:#96b5b4;">borrow_mut</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">as_ref</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">(), cnt);
-            }
-            _ =&gt; {}
-        }
-    }
-}
-
-</span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">add_state</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">list</span><span style="color:#c0c5ce;">: &amp;</span><span style="color:#b48ead;">mut </span><span style="color:#c0c5ce;">Vec&lt;Rc&lt;State&gt;&gt;, </span><span style="color:#bf616a;">state</span><span style="color:#c0c5ce;">: &amp;Rc&lt;State&gt;, </span><span style="color:#bf616a;">cnt</span><span style="color:#c0c5ce;">: &amp;</span><span style="color:#b48ead;">mut usize</span><span style="color:#c0c5ce;">) {
-    </span><span style="color:#b48ead;">if</span><span style="color:#c0c5ce;"> state.list_id.</span><span style="color:#96b5b4;">get</span><span style="color:#c0c5ce;">() == *cnt {
-        </span><span style="color:#b48ead;">return</span><span style="color:#c0c5ce;">;
-    }
-
-    </span><span style="color:#b48ead;">if let </span><span style="color:#c0c5ce;">StateKind::Split = state.kind {
-        </span><span style="color:#96b5b4;">add_state</span><span style="color:#c0c5ce;">(list, state.out.</span><span style="color:#96b5b4;">borrow_mut</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">as_ref</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">(), cnt);
-        </span><span style="color:#96b5b4;">add_state</span><span style="color:#c0c5ce;">(list, state.out1.</span><span style="color:#96b5b4;">borrow_mut</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">as_ref</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">(), cnt);
-    }
-
-    list.</span><span style="color:#96b5b4;">push</span><span style="color:#c0c5ce;">(Rc::clone(state));
-}
-
-</span><span style="color:#b48ead;">mod </span><span style="color:#c0c5ce;">test {
-    </span><span style="color:#b48ead;">use super</span><span style="color:#c0c5ce;">::*;
-
-    #[</span><span style="color:#bf616a;">test</span><span style="color:#c0c5ce;">]
-    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">lexer_test</span><span style="color:#c0c5ce;">() {
-        assert_eq!(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">abc</span><span style="color:#c0c5ce;">&quot;).</span><span style="color:#96b5b4;">iter</span><span style="color:#c0c5ce;">().collect::&lt;String&gt;(), &quot;</span><span style="color:#a3be8c;">a.b.c</span><span style="color:#c0c5ce;">&quot;);
-        assert_eq!(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">ab|a</span><span style="color:#c0c5ce;">&quot;).</span><span style="color:#96b5b4;">iter</span><span style="color:#c0c5ce;">().collect::&lt;String&gt;(), &quot;</span><span style="color:#a3be8c;">a.b|a</span><span style="color:#c0c5ce;">&quot;);
-        assert_eq!(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">ab+c</span><span style="color:#c0c5ce;">&quot;).</span><span style="color:#96b5b4;">iter</span><span style="color:#c0c5ce;">().collect::&lt;String&gt;(), &quot;</span><span style="color:#a3be8c;">a.b+.c</span><span style="color:#c0c5ce;">&quot;);
-        assert_eq!(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">a(bb)+a</span><span style="color:#c0c5ce;">&quot;).</span><span style="color:#96b5b4;">iter</span><span style="color:#c0c5ce;">().collect::&lt;String&gt;(), &quot;</span><span style="color:#a3be8c;">a.(b.b)+.a</span><span style="color:#c0c5ce;">&quot;);
-    }
-
-    #[</span><span style="color:#bf616a;">test</span><span style="color:#c0c5ce;">]
-    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">re2postfix_test</span><span style="color:#c0c5ce;">() {
-        assert_eq!(</span><span style="color:#96b5b4;">re2post</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">abc</span><span style="color:#c0c5ce;">&quot;)).</span><span style="color:#96b5b4;">iter</span><span style="color:#c0c5ce;">().collect::&lt;String&gt;(), &quot;</span><span style="color:#a3be8c;">ab.c.</span><span style="color:#c0c5ce;">&quot;);
-        assert_eq!(</span><span style="color:#96b5b4;">re2post</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">ab|a</span><span style="color:#c0c5ce;">&quot;)).</span><span style="color:#96b5b4;">iter</span><span style="color:#c0c5ce;">().collect::&lt;String&gt;(), &quot;</span><span style="color:#a3be8c;">ab.a|</span><span style="color:#c0c5ce;">&quot;);
-        assert_eq!(</span><span style="color:#96b5b4;">re2post</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">ab+c</span><span style="color:#c0c5ce;">&quot;)).</span><span style="color:#96b5b4;">iter</span><span style="color:#c0c5ce;">().collect::&lt;String&gt;(), &quot;</span><span style="color:#a3be8c;">ab+.c.</span><span style="color:#c0c5ce;">&quot;);
-        assert_eq!(
-            </span><span style="color:#96b5b4;">re2post</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">a(bb)+a</span><span style="color:#c0c5ce;">&quot;)).</span><span style="color:#96b5b4;">iter</span><span style="color:#c0c5ce;">().collect::&lt;String&gt;(),
-            &quot;</span><span style="color:#a3be8c;">abb.+.a.</span><span style="color:#c0c5ce;">&quot;
-        );
-    }
-
-    #[</span><span style="color:#bf616a;">test</span><span style="color:#c0c5ce;">]
-    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">post2nfa_test</span><span style="color:#c0c5ce;">() {
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> start = </span><span style="color:#96b5b4;">post2nfa</span><span style="color:#c0c5ce;">(vec![&#39;</span><span style="color:#a3be8c;">a</span><span style="color:#c0c5ce;">&#39;]);
-        assert!(matches!(start.kind, StateKind::Lit(&#39;</span><span style="color:#a3be8c;">a</span><span style="color:#c0c5ce;">&#39;)));
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> out = Rc::clone(&amp;start.out);
-        assert!(matches!(
-            out.</span><span style="color:#96b5b4;">borrow_mut</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">as_ref</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">().kind,
-            StateKind::Match
-        ));
-
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> start = </span><span style="color:#96b5b4;">post2nfa</span><span style="color:#c0c5ce;">(vec![&#39;</span><span style="color:#a3be8c;">a</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">b</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">.</span><span style="color:#c0c5ce;">&#39;]);
-        assert!(matches!(start.kind, StateKind::Lit(&#39;</span><span style="color:#a3be8c;">a</span><span style="color:#c0c5ce;">&#39;)));
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> out = Rc::clone(&amp;start.out);
-        assert!(matches!(
-            out.</span><span style="color:#96b5b4;">borrow_mut</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">as_ref</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">().kind,
-            StateKind::Lit(&#39;</span><span style="color:#a3be8c;">b</span><span style="color:#c0c5ce;">&#39;)
-        ));
-
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> start = </span><span style="color:#96b5b4;">post2nfa</span><span style="color:#c0c5ce;">(vec![&#39;</span><span style="color:#a3be8c;">a</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">b</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">|</span><span style="color:#c0c5ce;">&#39;]);
-        assert!(matches!(start.kind, StateKind::Split));
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> out = Rc::clone(&amp;start.out);
-        assert!(matches!(
-            out.</span><span style="color:#96b5b4;">borrow_mut</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">as_ref</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">().kind,
-            StateKind::Lit(&#39;</span><span style="color:#a3be8c;">a</span><span style="color:#c0c5ce;">&#39;)
-        ));
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> out1 = Rc::clone(&amp;start.out1);
-        assert!(matches!(
-            out1.</span><span style="color:#96b5b4;">borrow_mut</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">as_ref</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">().kind,
-            StateKind::Lit(&#39;</span><span style="color:#a3be8c;">b</span><span style="color:#c0c5ce;">&#39;)
-        ));
-
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> start = </span><span style="color:#96b5b4;">post2nfa</span><span style="color:#c0c5ce;">(vec![&#39;</span><span style="color:#a3be8c;">a</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">?</span><span style="color:#c0c5ce;">&#39;]);
-        assert!(matches!(start.kind, StateKind::Split));
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> out = Rc::clone(&amp;start.out);
-        assert!(matches!(
-            out.</span><span style="color:#96b5b4;">borrow_mut</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">as_ref</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">().kind,
-            StateKind::Lit(&#39;</span><span style="color:#a3be8c;">a</span><span style="color:#c0c5ce;">&#39;)
-        ));
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> out1 = Rc::clone(&amp;start.out1);
-        assert!(matches!(
-            out1.</span><span style="color:#96b5b4;">borrow_mut</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">as_ref</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">().kind,
-            StateKind::Match
-        ));
-
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> start = </span><span style="color:#96b5b4;">post2nfa</span><span style="color:#c0c5ce;">(vec![&#39;</span><span style="color:#a3be8c;">a</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&#39;]);
-        assert!(matches!(start.kind, StateKind::Split));
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> out = Rc::clone(&amp;start.out);
-        assert!(matches!(
-            out.</span><span style="color:#96b5b4;">borrow_mut</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">as_ref</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">().kind,
-            StateKind::Lit(&#39;</span><span style="color:#a3be8c;">a</span><span style="color:#c0c5ce;">&#39;)
-        ));
-        assert!(matches!(
-            out.</span><span style="color:#96b5b4;">borrow_mut</span><span style="color:#c0c5ce;">()
-                .</span><span style="color:#96b5b4;">as_ref</span><span style="color:#c0c5ce;">()
-                .</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">()
-                .out
-                .</span><span style="color:#96b5b4;">borrow_mut</span><span style="color:#c0c5ce;">()
-                .</span><span style="color:#96b5b4;">as_ref</span><span style="color:#c0c5ce;">()
-                .</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">()
-                .kind,
-            StateKind::Split,
-        ));
-        assert!(out
-            .</span><span style="color:#96b5b4;">borrow_mut</span><span style="color:#c0c5ce;">()
-            .</span><span style="color:#96b5b4;">as_ref</span><span style="color:#c0c5ce;">()
-            .</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">()
-            .out1
-            .</span><span style="color:#96b5b4;">borrow_mut</span><span style="color:#c0c5ce;">()
-            .</span><span style="color:#96b5b4;">is_none</span><span style="color:#c0c5ce;">(),);
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> out1 = Rc::clone(&amp;start.out1);
-        assert!(matches!(
-            out1.</span><span style="color:#96b5b4;">borrow_mut</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">as_ref</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">().kind,
-            StateKind::Match
-        ));
-
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> start = </span><span style="color:#96b5b4;">post2nfa</span><span style="color:#c0c5ce;">(vec![&#39;</span><span style="color:#a3be8c;">a</span><span style="color:#c0c5ce;">&#39;, &#39;</span><span style="color:#a3be8c;">+</span><span style="color:#c0c5ce;">&#39;]);
-        assert!(matches!(start.kind, StateKind::Lit(&#39;</span><span style="color:#a3be8c;">a</span><span style="color:#c0c5ce;">&#39;)));
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> out = Rc::clone(&amp;start.out);
-        assert!(matches!(
-            out.</span><span style="color:#96b5b4;">borrow_mut</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">as_ref</span><span style="color:#c0c5ce;">().</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">().kind,
-            StateKind::Split,
-        ));
-        assert!(matches!(
-            out.</span><span style="color:#96b5b4;">borrow_mut</span><span style="color:#c0c5ce;">()
-                .</span><span style="color:#96b5b4;">as_ref</span><span style="color:#c0c5ce;">()
-                .</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">()
-                .out
-                .</span><span style="color:#96b5b4;">borrow_mut</span><span style="color:#c0c5ce;">()
-                .</span><span style="color:#96b5b4;">as_ref</span><span style="color:#c0c5ce;">()
-                .</span><span style="color:#96b5b4;">unwrap</span><span style="color:#c0c5ce;">()
-                .kind,
-            StateKind::Lit(&#39;</span><span style="color:#a3be8c;">a</span><span style="color:#c0c5ce;">&#39;),
-        ));
-    }
-
-    #[</span><span style="color:#bf616a;">test</span><span style="color:#c0c5ce;">]
-    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">matches_test</span><span style="color:#c0c5ce;">() {
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> start = </span><span style="color:#96b5b4;">post2nfa</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">re2post</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">a</span><span style="color:#c0c5ce;">&quot;)));
-        assert!(</span><span style="color:#96b5b4;">matches</span><span style="color:#c0c5ce;">(start, &quot;</span><span style="color:#a3be8c;">a</span><span style="color:#c0c5ce;">&quot;));
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> start = </span><span style="color:#96b5b4;">post2nfa</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">re2post</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">a</span><span style="color:#c0c5ce;">&quot;)));
-        assert!(!</span><span style="color:#96b5b4;">matches</span><span style="color:#c0c5ce;">(start, &quot;</span><span style="color:#a3be8c;">ab</span><span style="color:#c0c5ce;">&quot;));
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> start = </span><span style="color:#96b5b4;">post2nfa</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">re2post</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">a</span><span style="color:#c0c5ce;">&quot;)));
-        assert!(!</span><span style="color:#96b5b4;">matches</span><span style="color:#c0c5ce;">(start, &quot;</span><span style="color:#a3be8c;">b</span><span style="color:#c0c5ce;">&quot;));
-
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> start = </span><span style="color:#96b5b4;">post2nfa</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">re2post</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">ab</span><span style="color:#c0c5ce;">&quot;)));
-        assert!(</span><span style="color:#96b5b4;">matches</span><span style="color:#c0c5ce;">(start, &quot;</span><span style="color:#a3be8c;">ab</span><span style="color:#c0c5ce;">&quot;));
-
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> start = </span><span style="color:#96b5b4;">post2nfa</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">re2post</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">a|b</span><span style="color:#c0c5ce;">&quot;)));
-        assert!(</span><span style="color:#96b5b4;">matches</span><span style="color:#c0c5ce;">(start, &quot;</span><span style="color:#a3be8c;">a</span><span style="color:#c0c5ce;">&quot;));
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> start = </span><span style="color:#96b5b4;">post2nfa</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">re2post</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">a|b</span><span style="color:#c0c5ce;">&quot;)));
-        assert!(</span><span style="color:#96b5b4;">matches</span><span style="color:#c0c5ce;">(start, &quot;</span><span style="color:#a3be8c;">b</span><span style="color:#c0c5ce;">&quot;));
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> start = </span><span style="color:#96b5b4;">post2nfa</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">re2post</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">a|b</span><span style="color:#c0c5ce;">&quot;)));
-        assert!(!</span><span style="color:#96b5b4;">matches</span><span style="color:#c0c5ce;">(start, &quot;</span><span style="color:#a3be8c;">c</span><span style="color:#c0c5ce;">&quot;));
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> start = </span><span style="color:#96b5b4;">post2nfa</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">re2post</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">abcd|bc?da</span><span style="color:#c0c5ce;">&quot;)));
-        assert!(</span><span style="color:#96b5b4;">matches</span><span style="color:#c0c5ce;">(start, &quot;</span><span style="color:#a3be8c;">abcd</span><span style="color:#c0c5ce;">&quot;));
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> start = </span><span style="color:#96b5b4;">post2nfa</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">re2post</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">abcd|bc?da</span><span style="color:#c0c5ce;">&quot;)));
-        assert!(</span><span style="color:#96b5b4;">matches</span><span style="color:#c0c5ce;">(start, &quot;</span><span style="color:#a3be8c;">bcda</span><span style="color:#c0c5ce;">&quot;));
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> start = </span><span style="color:#96b5b4;">post2nfa</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">re2post</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">abcd|bc?da</span><span style="color:#c0c5ce;">&quot;)));
-        assert!(</span><span style="color:#96b5b4;">matches</span><span style="color:#c0c5ce;">(start, &quot;</span><span style="color:#a3be8c;">bda</span><span style="color:#c0c5ce;">&quot;));
-
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> start = </span><span style="color:#96b5b4;">post2nfa</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">re2post</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">a?</span><span style="color:#c0c5ce;">&quot;)));
-        assert!(</span><span style="color:#96b5b4;">matches</span><span style="color:#c0c5ce;">(start, &quot;&quot;));
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> start = </span><span style="color:#96b5b4;">post2nfa</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">re2post</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">a?</span><span style="color:#c0c5ce;">&quot;)));
-        assert!(</span><span style="color:#96b5b4;">matches</span><span style="color:#c0c5ce;">(start, &quot;</span><span style="color:#a3be8c;">a</span><span style="color:#c0c5ce;">&quot;));
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> start = </span><span style="color:#96b5b4;">post2nfa</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">re2post</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">a?a</span><span style="color:#c0c5ce;">&quot;)));
-        assert!(</span><span style="color:#96b5b4;">matches</span><span style="color:#c0c5ce;">(start, &quot;</span><span style="color:#a3be8c;">a</span><span style="color:#c0c5ce;">&quot;));
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> start = </span><span style="color:#96b5b4;">post2nfa</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">re2post</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">a?a</span><span style="color:#c0c5ce;">&quot;)));
-        assert!(</span><span style="color:#96b5b4;">matches</span><span style="color:#c0c5ce;">(start, &quot;</span><span style="color:#a3be8c;">aa</span><span style="color:#c0c5ce;">&quot;));
-
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> start = </span><span style="color:#96b5b4;">post2nfa</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">re2post</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">a*</span><span style="color:#c0c5ce;">&quot;)));
-        assert!(</span><span style="color:#96b5b4;">matches</span><span style="color:#c0c5ce;">(start, &quot;&quot;));
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> start = </span><span style="color:#96b5b4;">post2nfa</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">re2post</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">a*</span><span style="color:#c0c5ce;">&quot;)));
-        assert!(</span><span style="color:#96b5b4;">matches</span><span style="color:#c0c5ce;">(start, &quot;</span><span style="color:#a3be8c;">a</span><span style="color:#c0c5ce;">&quot;));
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> start = </span><span style="color:#96b5b4;">post2nfa</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">re2post</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">a*</span><span style="color:#c0c5ce;">&quot;)));
-        assert!(</span><span style="color:#96b5b4;">matches</span><span style="color:#c0c5ce;">(start, &quot;</span><span style="color:#a3be8c;">aaaaaaaa</span><span style="color:#c0c5ce;">&quot;));
-
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> start = </span><span style="color:#96b5b4;">post2nfa</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">re2post</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">a+</span><span style="color:#c0c5ce;">&quot;)));
-        assert!(!</span><span style="color:#96b5b4;">matches</span><span style="color:#c0c5ce;">(start, &quot;&quot;));
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> start = </span><span style="color:#96b5b4;">post2nfa</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">re2post</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">a+</span><span style="color:#c0c5ce;">&quot;)));
-        assert!(</span><span style="color:#96b5b4;">matches</span><span style="color:#c0c5ce;">(start, &quot;</span><span style="color:#a3be8c;">a</span><span style="color:#c0c5ce;">&quot;));
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> start = </span><span style="color:#96b5b4;">post2nfa</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">re2post</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">a+</span><span style="color:#c0c5ce;">&quot;)));
-        assert!(</span><span style="color:#96b5b4;">matches</span><span style="color:#c0c5ce;">(start, &quot;</span><span style="color:#a3be8c;">aaaaaaaa</span><span style="color:#c0c5ce;">&quot;));
-
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> start = </span><span style="color:#96b5b4;">post2nfa</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">re2post</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">a?a?a?aaa</span><span style="color:#c0c5ce;">&quot;)));
-        assert!(</span><span style="color:#96b5b4;">matches</span><span style="color:#c0c5ce;">(start, &quot;</span><span style="color:#a3be8c;">aaa</span><span style="color:#c0c5ce;">&quot;));
-        </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> start = </span><span style="color:#96b5b4;">post2nfa</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">re2post</span><span style="color:#c0c5ce;">(</span><span style="color:#96b5b4;">lexer</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">a?a?a?aaa</span><span style="color:#c0c5ce;">&quot;)));
-        assert!(</span><span style="color:#96b5b4;">matches</span><span style="color:#c0c5ce;">(start, &quot;</span><span style="color:#a3be8c;">aaaaaa</span><span style="color:#c0c5ce;">&quot;));
-    }
-}
-</span></code></pre><h2 id="can-kao">参考</h2>
+<pre data-lang="rs" style="background-color:#2b303b;color:#c0c5ce;" class="language-rs "><code class="language-rs" data-lang="rs"><span style="color:#b48ead;">use </span><span>std::cell::{Cell, RefCell};
+</span><span style="color:#b48ead;">use </span><span>std::rc::Rc;
+</span><span style="color:#b48ead;">use </span><span>std::vec;
+</span><span>
+</span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">main</span><span>() {
+</span><span>    println!(&quot;</span><span style="color:#a3be8c;">Hello, world!</span><span>&quot;);
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">lexer</span><span>(</span><span style="color:#bf616a;">s</span><span>: &amp;</span><span style="color:#b48ead;">str</span><span>) -&gt; Vec&lt;</span><span style="color:#b48ead;">char</span><span>&gt; {
+</span><span>    </span><span style="color:#b48ead;">let mut</span><span> out: Vec&lt;</span><span style="color:#b48ead;">char</span><span>&gt; = Vec::new();
+</span><span>
+</span><span>    </span><span style="color:#b48ead;">let</span><span> s = s.</span><span style="color:#96b5b4;">to_string</span><span>();
+</span><span>    </span><span style="color:#b48ead;">let mut</span><span> iter = s.</span><span style="color:#96b5b4;">chars</span><span>().</span><span style="color:#96b5b4;">peekable</span><span>();
+</span><span>    </span><span style="color:#b48ead;">while let </span><span>Some(c) = iter.</span><span style="color:#96b5b4;">next</span><span>() {
+</span><span>        out.</span><span style="color:#96b5b4;">push</span><span>(c);
+</span><span>
+</span><span>        </span><span style="color:#b48ead;">if</span><span> c == &#39;</span><span style="color:#a3be8c;">(</span><span>&#39; || c == &#39;</span><span style="color:#a3be8c;">|</span><span>&#39; {
+</span><span>            </span><span style="color:#b48ead;">continue</span><span>;
+</span><span>        }
+</span><span>
+</span><span>        </span><span style="color:#b48ead;">if let </span><span>Some(peek) = iter.</span><span style="color:#96b5b4;">peek</span><span>() {
+</span><span>            </span><span style="color:#b48ead;">match</span><span> peek {
+</span><span>                &#39;</span><span style="color:#a3be8c;">|</span><span>&#39; | &#39;</span><span style="color:#a3be8c;">*</span><span>&#39; | &#39;</span><span style="color:#a3be8c;">+</span><span>&#39; | &#39;</span><span style="color:#a3be8c;">?</span><span>&#39; | &#39;</span><span style="color:#a3be8c;">)</span><span>&#39; =&gt; {}
+</span><span>                _ =&gt; out.</span><span style="color:#96b5b4;">push</span><span>(&#39;</span><span style="color:#a3be8c;">.</span><span>&#39;),
+</span><span>            }
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    out
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">re2post</span><span>(</span><span style="color:#bf616a;">re</span><span>: Vec&lt;</span><span style="color:#b48ead;">char</span><span>&gt;) -&gt; Vec&lt;</span><span style="color:#b48ead;">char</span><span>&gt; {
+</span><span>    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">precedence</span><span>(</span><span style="color:#bf616a;">c</span><span>: </span><span style="color:#b48ead;">char</span><span>) -&gt; </span><span style="color:#b48ead;">usize </span><span>{
+</span><span>        </span><span style="color:#b48ead;">match</span><span> c {
+</span><span>            &#39;</span><span style="color:#a3be8c;">(</span><span>&#39; | &#39;</span><span style="color:#a3be8c;">)</span><span>&#39; =&gt; </span><span style="color:#d08770;">1</span><span>,
+</span><span>            &#39;</span><span style="color:#a3be8c;">|</span><span>&#39; =&gt; </span><span style="color:#d08770;">2</span><span>,
+</span><span>            &#39;</span><span style="color:#a3be8c;">.</span><span>&#39; =&gt; </span><span style="color:#d08770;">3</span><span>, </span><span style="color:#65737e;">// concat
+</span><span>            &#39;</span><span style="color:#a3be8c;">*</span><span>&#39; | &#39;</span><span style="color:#a3be8c;">+</span><span>&#39; | &#39;</span><span style="color:#a3be8c;">?</span><span>&#39; =&gt; </span><span style="color:#d08770;">4</span><span>,
+</span><span>            _ =&gt; </span><span style="color:#d08770;">6</span><span>,
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#b48ead;">let mut</span><span> out: Vec&lt;</span><span style="color:#b48ead;">char</span><span>&gt; = Vec::new();
+</span><span>    </span><span style="color:#b48ead;">let mut</span><span> stack: Vec&lt;</span><span style="color:#b48ead;">char</span><span>&gt; = Vec::new();
+</span><span>
+</span><span>    </span><span style="color:#b48ead;">for</span><span> c in re.</span><span style="color:#96b5b4;">iter</span><span>() {
+</span><span>        </span><span style="color:#b48ead;">match</span><span> c {
+</span><span>            &#39;</span><span style="color:#a3be8c;">(</span><span>&#39; =&gt; stack.</span><span style="color:#96b5b4;">push</span><span>(*c),
+</span><span>            &#39;</span><span style="color:#a3be8c;">)</span><span>&#39; =&gt; {
+</span><span>                </span><span style="color:#b48ead;">while</span><span> stack.</span><span style="color:#96b5b4;">last</span><span>().</span><span style="color:#96b5b4;">is_some</span><span>() &amp;&amp; *stack.</span><span style="color:#96b5b4;">last</span><span>().</span><span style="color:#96b5b4;">unwrap</span><span>() != &#39;</span><span style="color:#a3be8c;">(</span><span>&#39; {
+</span><span>                    </span><span style="color:#b48ead;">let</span><span> op = stack.</span><span style="color:#96b5b4;">pop</span><span>().</span><span style="color:#96b5b4;">unwrap</span><span>();
+</span><span>                    out.</span><span style="color:#96b5b4;">push</span><span>(op);
+</span><span>                }
+</span><span>                </span><span style="color:#65737e;">// pop &#39;(&#39;
+</span><span>                stack.</span><span style="color:#96b5b4;">pop</span><span>();
+</span><span>            }
+</span><span>            &#39;</span><span style="color:#a3be8c;">.</span><span>&#39; | &#39;</span><span style="color:#a3be8c;">*</span><span>&#39; | &#39;</span><span style="color:#a3be8c;">+</span><span>&#39; | &#39;</span><span style="color:#a3be8c;">?</span><span>&#39; | &#39;</span><span style="color:#a3be8c;">|</span><span>&#39; =&gt; {
+</span><span>                </span><span style="color:#b48ead;">while let </span><span>Some(last) = stack.</span><span style="color:#96b5b4;">last</span><span>() {
+</span><span>                    </span><span style="color:#b48ead;">if </span><span style="color:#96b5b4;">precedence</span><span>(*last) &gt;= </span><span style="color:#96b5b4;">precedence</span><span>(*c) {
+</span><span>                        </span><span style="color:#b48ead;">let</span><span> op = stack.</span><span style="color:#96b5b4;">pop</span><span>().</span><span style="color:#96b5b4;">unwrap</span><span>();
+</span><span>                        out.</span><span style="color:#96b5b4;">push</span><span>(op);
+</span><span>                    } </span><span style="color:#b48ead;">else </span><span>{
+</span><span>                        </span><span style="color:#b48ead;">break</span><span>;
+</span><span>                    }
+</span><span>                }
+</span><span>                stack.</span><span style="color:#96b5b4;">push</span><span>(*c);
+</span><span>            }
+</span><span>            _ =&gt; out.</span><span style="color:#96b5b4;">push</span><span>(*c),
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#b48ead;">while</span><span> stack.</span><span style="color:#96b5b4;">last</span><span>().</span><span style="color:#96b5b4;">is_some</span><span>() {
+</span><span>        </span><span style="color:#b48ead;">let</span><span> op = stack.</span><span style="color:#96b5b4;">pop</span><span>().</span><span style="color:#96b5b4;">unwrap</span><span>();
+</span><span>        out.</span><span style="color:#96b5b4;">push</span><span>(op);
+</span><span>    }
+</span><span>
+</span><span>    out
+</span><span>}
+</span><span>
+</span><span>#[</span><span style="color:#bf616a;">derive</span><span>(Debug)]
+</span><span style="color:#b48ead;">struct </span><span>State {
+</span><span>    </span><span style="color:#bf616a;">kind</span><span>: StateKind,
+</span><span>    </span><span style="color:#bf616a;">out</span><span>: Rc&lt;RefCell&lt;Option&lt;Rc&lt;State&gt;&gt;&gt;&gt;,
+</span><span>    </span><span style="color:#bf616a;">out1</span><span>: Rc&lt;RefCell&lt;Option&lt;Rc&lt;State&gt;&gt;&gt;&gt;,
+</span><span>    </span><span style="color:#bf616a;">list_id</span><span>: Cell&lt;</span><span style="color:#b48ead;">usize</span><span>&gt;,
+</span><span>}
+</span><span>
+</span><span>#[</span><span style="color:#bf616a;">derive</span><span>(Debug)]
+</span><span style="color:#b48ead;">enum </span><span>StateKind {
+</span><span>    Lit(</span><span style="color:#b48ead;">char</span><span>),
+</span><span>    Split,
+</span><span>    Match,
+</span><span>}
+</span><span>
+</span><span>#[</span><span style="color:#bf616a;">derive</span><span>(Debug)]
+</span><span style="color:#b48ead;">struct </span><span>Fragment {
+</span><span>    </span><span style="color:#bf616a;">start</span><span>: Rc&lt;State&gt;,
+</span><span>    </span><span style="color:#bf616a;">outs</span><span>: Vec&lt;Rc&lt;RefCell&lt;Option&lt;Rc&lt;State&gt;&gt;&gt;&gt;&gt;,
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">post2nfa</span><span>(</span><span style="color:#bf616a;">post</span><span>: Vec&lt;</span><span style="color:#b48ead;">char</span><span>&gt;) -&gt; Rc&lt;State&gt; {
+</span><span>    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">patch</span><span>(</span><span style="color:#bf616a;">outs</span><span>: Vec&lt;Rc&lt;RefCell&lt;Option&lt;Rc&lt;State&gt;&gt;&gt;&gt;&gt;, </span><span style="color:#bf616a;">start</span><span>: Rc&lt;State&gt;) {
+</span><span>        </span><span style="color:#b48ead;">for</span><span> out in outs {
+</span><span>            *out.</span><span style="color:#96b5b4;">borrow_mut</span><span>() = Some(Rc::clone(&amp;start));
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#b48ead;">let mut</span><span> stack: Vec&lt;Fragment&gt; = Vec::new();
+</span><span>
+</span><span>    </span><span style="color:#b48ead;">for</span><span> c in post {
+</span><span>        </span><span style="color:#b48ead;">match</span><span> c {
+</span><span>            &#39;</span><span style="color:#a3be8c;">.</span><span>&#39; =&gt; {
+</span><span>                </span><span style="color:#b48ead;">let</span><span> e2 = stack.</span><span style="color:#96b5b4;">pop</span><span>().</span><span style="color:#96b5b4;">unwrap</span><span>();
+</span><span>                </span><span style="color:#b48ead;">let</span><span> e1 = stack.</span><span style="color:#96b5b4;">pop</span><span>().</span><span style="color:#96b5b4;">unwrap</span><span>();
+</span><span>                </span><span style="color:#96b5b4;">patch</span><span>(e1.outs.</span><span style="color:#96b5b4;">clone</span><span>(), Rc::clone(&amp;e2.start));
+</span><span>                stack.</span><span style="color:#96b5b4;">push</span><span>(Fragment {
+</span><span>                    start: e1.start,
+</span><span>                    outs: e2.outs,
+</span><span>                })
+</span><span>            }
+</span><span>            &#39;</span><span style="color:#a3be8c;">|</span><span>&#39; =&gt; {
+</span><span>                </span><span style="color:#b48ead;">let</span><span> e2 = stack.</span><span style="color:#96b5b4;">pop</span><span>().</span><span style="color:#96b5b4;">unwrap</span><span>();
+</span><span>                </span><span style="color:#b48ead;">let</span><span> e1 = stack.</span><span style="color:#96b5b4;">pop</span><span>().</span><span style="color:#96b5b4;">unwrap</span><span>();
+</span><span>                </span><span style="color:#b48ead;">let</span><span> s = State {
+</span><span>                    kind: StateKind::Split,
+</span><span>                    out: Rc::new(RefCell::new(Some(Rc::clone(&amp;e1.start)))),
+</span><span>                    out1: Rc::new(RefCell::new(Some(Rc::clone(&amp;e2.start)))),
+</span><span>                    list_id: Cell::new(</span><span style="color:#d08770;">0</span><span>),
+</span><span>                };
+</span><span>                stack.</span><span style="color:#96b5b4;">push</span><span>(Fragment {
+</span><span>                    start: Rc::new(s),
+</span><span>                    outs: e1
+</span><span>                        .outs
+</span><span>                        .</span><span style="color:#96b5b4;">iter</span><span>()
+</span><span>                        .</span><span style="color:#96b5b4;">chain</span><span>(e2.outs.</span><span style="color:#96b5b4;">iter</span><span>())
+</span><span>                        .</span><span style="color:#96b5b4;">map</span><span>(|</span><span style="color:#bf616a;">out</span><span>| Rc::clone(out))
+</span><span>                        .collect::&lt;Vec&lt;_&gt;&gt;(),
+</span><span>                })
+</span><span>            }
+</span><span>            &#39;</span><span style="color:#a3be8c;">?</span><span>&#39; =&gt; {
+</span><span>                </span><span style="color:#b48ead;">let</span><span> e = stack.</span><span style="color:#96b5b4;">pop</span><span>().</span><span style="color:#96b5b4;">unwrap</span><span>();
+</span><span>                </span><span style="color:#b48ead;">let</span><span> s = State {
+</span><span>                    kind: StateKind::Split,
+</span><span>                    out: Rc::new(RefCell::new(Some(Rc::clone(&amp;e.start)))),
+</span><span>                    out1: Rc::new(RefCell::new(None)),
+</span><span>                    list_id: Cell::new(</span><span style="color:#d08770;">0</span><span>),
+</span><span>                };
+</span><span>                </span><span style="color:#b48ead;">let</span><span> outs = e
+</span><span>                    .outs
+</span><span>                    .</span><span style="color:#96b5b4;">iter</span><span>()
+</span><span>                    .</span><span style="color:#96b5b4;">chain</span><span>(vec![Rc::clone(&amp;s.out1)].</span><span style="color:#96b5b4;">iter</span><span>())
+</span><span>                    .</span><span style="color:#96b5b4;">map</span><span>(|</span><span style="color:#bf616a;">out</span><span>| Rc::clone(out))
+</span><span>                    .collect::&lt;Vec&lt;_&gt;&gt;();
+</span><span>                stack.</span><span style="color:#96b5b4;">push</span><span>(Fragment {
+</span><span>                    start: Rc::new(s),
+</span><span>                    outs,
+</span><span>                })
+</span><span>            }
+</span><span>            &#39;</span><span style="color:#a3be8c;">*</span><span>&#39; =&gt; {
+</span><span>                </span><span style="color:#b48ead;">let</span><span> e = stack.</span><span style="color:#96b5b4;">pop</span><span>().</span><span style="color:#96b5b4;">unwrap</span><span>();
+</span><span>                </span><span style="color:#b48ead;">let</span><span> s = Rc::new(State {
+</span><span>                    kind: StateKind::Split,
+</span><span>                    out: Rc::new(RefCell::new(Some(Rc::clone(&amp;e.start)))),
+</span><span>                    out1: Rc::new(RefCell::new(None)),
+</span><span>                    list_id: Cell::new(</span><span style="color:#d08770;">0</span><span>),
+</span><span>                });
+</span><span>                </span><span style="color:#96b5b4;">patch</span><span>(e.outs, Rc::clone(&amp;s));
+</span><span>                </span><span style="color:#b48ead;">let</span><span> out = Rc::clone(&amp;s.out1);
+</span><span>                stack.</span><span style="color:#96b5b4;">push</span><span>(Fragment {
+</span><span>                    start: s,
+</span><span>                    outs: vec![out],
+</span><span>                })
+</span><span>            }
+</span><span>            &#39;</span><span style="color:#a3be8c;">+</span><span>&#39; =&gt; {
+</span><span>                </span><span style="color:#b48ead;">let</span><span> e = stack.</span><span style="color:#96b5b4;">pop</span><span>().</span><span style="color:#96b5b4;">unwrap</span><span>();
+</span><span>                </span><span style="color:#b48ead;">let</span><span> s = Rc::new(State {
+</span><span>                    kind: StateKind::Split,
+</span><span>                    out: Rc::new(RefCell::new(Some(Rc::clone(&amp;e.start)))),
+</span><span>                    out1: Rc::new(RefCell::new(None)),
+</span><span>                    list_id: Cell::new(</span><span style="color:#d08770;">0</span><span>),
+</span><span>                });
+</span><span>                </span><span style="color:#96b5b4;">patch</span><span>(e.outs, Rc::clone(&amp;s));
+</span><span>                </span><span style="color:#b48ead;">let</span><span> out = Rc::clone(&amp;s.out1);
+</span><span>                stack.</span><span style="color:#96b5b4;">push</span><span>(Fragment {
+</span><span>                    start: e.start,
+</span><span>                    outs: vec![out],
+</span><span>                })
+</span><span>            }
+</span><span>            _ =&gt; {
+</span><span>                </span><span style="color:#b48ead;">let</span><span> s = State {
+</span><span>                    kind: StateKind::Lit(c),
+</span><span>                    out: Rc::new(RefCell::new(None)),
+</span><span>                    out1: Rc::new(RefCell::new(None)),
+</span><span>                    list_id: Cell::new(</span><span style="color:#d08770;">0</span><span>),
+</span><span>                };
+</span><span>
+</span><span>                </span><span style="color:#b48ead;">let</span><span> out = Rc::clone(&amp;s.out);
+</span><span>                </span><span style="color:#b48ead;">let</span><span> f = Fragment {
+</span><span>                    start: Rc::new(s),
+</span><span>                    outs: vec![out],
+</span><span>                };
+</span><span>                stack.</span><span style="color:#96b5b4;">push</span><span>(f);
+</span><span>            }
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#b48ead;">let</span><span> e = stack.</span><span style="color:#96b5b4;">pop</span><span>().</span><span style="color:#96b5b4;">unwrap</span><span>();
+</span><span>    </span><span style="color:#96b5b4;">patch</span><span>(
+</span><span>        e.outs,
+</span><span>        Rc::new(State {
+</span><span>            kind: StateKind::Match,
+</span><span>            out: Rc::new(RefCell::new(None)),
+</span><span>            out1: Rc::new(RefCell::new(None)),
+</span><span>            list_id: Cell::new(</span><span style="color:#d08770;">0</span><span>),
+</span><span>        }),
+</span><span>    );
+</span><span>    e.start
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">matches</span><span>(</span><span style="color:#bf616a;">start</span><span>: Rc&lt;State&gt;, </span><span style="color:#bf616a;">s</span><span>: &amp;</span><span style="color:#b48ead;">str</span><span>) -&gt; </span><span style="color:#b48ead;">bool </span><span>{
+</span><span>    </span><span style="color:#b48ead;">let</span><span> chars = s.</span><span style="color:#96b5b4;">to_string</span><span>().</span><span style="color:#96b5b4;">chars</span><span>().collect::&lt;Vec&lt;</span><span style="color:#b48ead;">char</span><span>&gt;&gt;();
+</span><span>    </span><span style="color:#b48ead;">let mut</span><span> cnt: </span><span style="color:#b48ead;">usize </span><span>= </span><span style="color:#d08770;">1</span><span>;
+</span><span>    </span><span style="color:#b48ead;">let mut</span><span> clist: Vec&lt;Rc&lt;State&gt;&gt; = Vec::new();
+</span><span>    </span><span style="color:#96b5b4;">add_state</span><span>(&amp;</span><span style="color:#b48ead;">mut</span><span> clist, &amp;start, &amp;</span><span style="color:#b48ead;">mut</span><span> cnt);
+</span><span>    cnt += </span><span style="color:#d08770;">1</span><span>;
+</span><span>    </span><span style="color:#b48ead;">let mut</span><span> nlist: Vec&lt;Rc&lt;State&gt;&gt; = Vec::new();
+</span><span>
+</span><span>    </span><span style="color:#b48ead;">for</span><span> c in chars {
+</span><span>        </span><span style="color:#96b5b4;">step</span><span>(&amp;clist, &amp;</span><span style="color:#b48ead;">mut</span><span> nlist, c, &amp;</span><span style="color:#b48ead;">mut</span><span> cnt);
+</span><span>        std::mem::swap(&amp;</span><span style="color:#b48ead;">mut</span><span> clist, &amp;</span><span style="color:#b48ead;">mut</span><span> nlist);
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#96b5b4;">is_match</span><span>(&amp;clist)
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">is_match</span><span>(</span><span style="color:#bf616a;">nlist</span><span>: &amp;[Rc&lt;State&gt;]) -&gt; </span><span style="color:#b48ead;">bool </span><span>{
+</span><span>    </span><span style="color:#b48ead;">for</span><span> state in nlist {
+</span><span>        </span><span style="color:#b48ead;">if let </span><span>StateKind::Match = state.kind {
+</span><span>            </span><span style="color:#b48ead;">return </span><span style="color:#d08770;">true</span><span>;
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#d08770;">false
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">step</span><span>(</span><span style="color:#bf616a;">clist</span><span>: &amp;[Rc&lt;State&gt;], </span><span style="color:#bf616a;">nlist</span><span>: &amp;</span><span style="color:#b48ead;">mut </span><span>Vec&lt;Rc&lt;State&gt;&gt;, </span><span style="color:#bf616a;">c</span><span>: </span><span style="color:#b48ead;">char</span><span>, </span><span style="color:#bf616a;">cnt</span><span>: &amp;</span><span style="color:#b48ead;">mut usize</span><span>) {
+</span><span>    *cnt += </span><span style="color:#d08770;">1</span><span>;
+</span><span>    nlist.</span><span style="color:#96b5b4;">clear</span><span>();
+</span><span>    </span><span style="color:#b48ead;">for</span><span> state in clist {
+</span><span>        </span><span style="color:#b48ead;">match</span><span> state.kind {
+</span><span>            StateKind::Lit(lit) </span><span style="color:#b48ead;">if</span><span> lit == c =&gt; {
+</span><span>                </span><span style="color:#b48ead;">let</span><span> s = Rc::clone(state);
+</span><span>                </span><span style="color:#96b5b4;">add_state</span><span>(nlist, s.out.</span><span style="color:#96b5b4;">borrow_mut</span><span>().</span><span style="color:#96b5b4;">as_ref</span><span>().</span><span style="color:#96b5b4;">unwrap</span><span>(), cnt);
+</span><span>            }
+</span><span>            _ =&gt; {}
+</span><span>        }
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">add_state</span><span>(</span><span style="color:#bf616a;">list</span><span>: &amp;</span><span style="color:#b48ead;">mut </span><span>Vec&lt;Rc&lt;State&gt;&gt;, </span><span style="color:#bf616a;">state</span><span>: &amp;Rc&lt;State&gt;, </span><span style="color:#bf616a;">cnt</span><span>: &amp;</span><span style="color:#b48ead;">mut usize</span><span>) {
+</span><span>    </span><span style="color:#b48ead;">if</span><span> state.list_id.</span><span style="color:#96b5b4;">get</span><span>() == *cnt {
+</span><span>        </span><span style="color:#b48ead;">return</span><span>;
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#b48ead;">if let </span><span>StateKind::Split = state.kind {
+</span><span>        </span><span style="color:#96b5b4;">add_state</span><span>(list, state.out.</span><span style="color:#96b5b4;">borrow_mut</span><span>().</span><span style="color:#96b5b4;">as_ref</span><span>().</span><span style="color:#96b5b4;">unwrap</span><span>(), cnt);
+</span><span>        </span><span style="color:#96b5b4;">add_state</span><span>(list, state.out1.</span><span style="color:#96b5b4;">borrow_mut</span><span>().</span><span style="color:#96b5b4;">as_ref</span><span>().</span><span style="color:#96b5b4;">unwrap</span><span>(), cnt);
+</span><span>    }
+</span><span>
+</span><span>    list.</span><span style="color:#96b5b4;">push</span><span>(Rc::clone(state));
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">mod </span><span>test {
+</span><span>    </span><span style="color:#b48ead;">use super</span><span>::*;
+</span><span>
+</span><span>    #[</span><span style="color:#bf616a;">test</span><span>]
+</span><span>    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">lexer_test</span><span>() {
+</span><span>        assert_eq!(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">abc</span><span>&quot;).</span><span style="color:#96b5b4;">iter</span><span>().collect::&lt;String&gt;(), &quot;</span><span style="color:#a3be8c;">a.b.c</span><span>&quot;);
+</span><span>        assert_eq!(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">ab|a</span><span>&quot;).</span><span style="color:#96b5b4;">iter</span><span>().collect::&lt;String&gt;(), &quot;</span><span style="color:#a3be8c;">a.b|a</span><span>&quot;);
+</span><span>        assert_eq!(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">ab+c</span><span>&quot;).</span><span style="color:#96b5b4;">iter</span><span>().collect::&lt;String&gt;(), &quot;</span><span style="color:#a3be8c;">a.b+.c</span><span>&quot;);
+</span><span>        assert_eq!(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">a(bb)+a</span><span>&quot;).</span><span style="color:#96b5b4;">iter</span><span>().collect::&lt;String&gt;(), &quot;</span><span style="color:#a3be8c;">a.(b.b)+.a</span><span>&quot;);
+</span><span>    }
+</span><span>
+</span><span>    #[</span><span style="color:#bf616a;">test</span><span>]
+</span><span>    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">re2postfix_test</span><span>() {
+</span><span>        assert_eq!(</span><span style="color:#96b5b4;">re2post</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">abc</span><span>&quot;)).</span><span style="color:#96b5b4;">iter</span><span>().collect::&lt;String&gt;(), &quot;</span><span style="color:#a3be8c;">ab.c.</span><span>&quot;);
+</span><span>        assert_eq!(</span><span style="color:#96b5b4;">re2post</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">ab|a</span><span>&quot;)).</span><span style="color:#96b5b4;">iter</span><span>().collect::&lt;String&gt;(), &quot;</span><span style="color:#a3be8c;">ab.a|</span><span>&quot;);
+</span><span>        assert_eq!(</span><span style="color:#96b5b4;">re2post</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">ab+c</span><span>&quot;)).</span><span style="color:#96b5b4;">iter</span><span>().collect::&lt;String&gt;(), &quot;</span><span style="color:#a3be8c;">ab+.c.</span><span>&quot;);
+</span><span>        assert_eq!(
+</span><span>            </span><span style="color:#96b5b4;">re2post</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">a(bb)+a</span><span>&quot;)).</span><span style="color:#96b5b4;">iter</span><span>().collect::&lt;String&gt;(),
+</span><span>            &quot;</span><span style="color:#a3be8c;">abb.+.a.</span><span>&quot;
+</span><span>        );
+</span><span>    }
+</span><span>
+</span><span>    #[</span><span style="color:#bf616a;">test</span><span>]
+</span><span>    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">post2nfa_test</span><span>() {
+</span><span>        </span><span style="color:#b48ead;">let</span><span> start = </span><span style="color:#96b5b4;">post2nfa</span><span>(vec![&#39;</span><span style="color:#a3be8c;">a</span><span>&#39;]);
+</span><span>        assert!(matches!(start.kind, StateKind::Lit(&#39;</span><span style="color:#a3be8c;">a</span><span>&#39;)));
+</span><span>        </span><span style="color:#b48ead;">let</span><span> out = Rc::clone(&amp;start.out);
+</span><span>        assert!(matches!(
+</span><span>            out.</span><span style="color:#96b5b4;">borrow_mut</span><span>().</span><span style="color:#96b5b4;">as_ref</span><span>().</span><span style="color:#96b5b4;">unwrap</span><span>().kind,
+</span><span>            StateKind::Match
+</span><span>        ));
+</span><span>
+</span><span>        </span><span style="color:#b48ead;">let</span><span> start = </span><span style="color:#96b5b4;">post2nfa</span><span>(vec![&#39;</span><span style="color:#a3be8c;">a</span><span>&#39;, &#39;</span><span style="color:#a3be8c;">b</span><span>&#39;, &#39;</span><span style="color:#a3be8c;">.</span><span>&#39;]);
+</span><span>        assert!(matches!(start.kind, StateKind::Lit(&#39;</span><span style="color:#a3be8c;">a</span><span>&#39;)));
+</span><span>        </span><span style="color:#b48ead;">let</span><span> out = Rc::clone(&amp;start.out);
+</span><span>        assert!(matches!(
+</span><span>            out.</span><span style="color:#96b5b4;">borrow_mut</span><span>().</span><span style="color:#96b5b4;">as_ref</span><span>().</span><span style="color:#96b5b4;">unwrap</span><span>().kind,
+</span><span>            StateKind::Lit(&#39;</span><span style="color:#a3be8c;">b</span><span>&#39;)
+</span><span>        ));
+</span><span>
+</span><span>        </span><span style="color:#b48ead;">let</span><span> start = </span><span style="color:#96b5b4;">post2nfa</span><span>(vec![&#39;</span><span style="color:#a3be8c;">a</span><span>&#39;, &#39;</span><span style="color:#a3be8c;">b</span><span>&#39;, &#39;</span><span style="color:#a3be8c;">|</span><span>&#39;]);
+</span><span>        assert!(matches!(start.kind, StateKind::Split));
+</span><span>        </span><span style="color:#b48ead;">let</span><span> out = Rc::clone(&amp;start.out);
+</span><span>        assert!(matches!(
+</span><span>            out.</span><span style="color:#96b5b4;">borrow_mut</span><span>().</span><span style="color:#96b5b4;">as_ref</span><span>().</span><span style="color:#96b5b4;">unwrap</span><span>().kind,
+</span><span>            StateKind::Lit(&#39;</span><span style="color:#a3be8c;">a</span><span>&#39;)
+</span><span>        ));
+</span><span>        </span><span style="color:#b48ead;">let</span><span> out1 = Rc::clone(&amp;start.out1);
+</span><span>        assert!(matches!(
+</span><span>            out1.</span><span style="color:#96b5b4;">borrow_mut</span><span>().</span><span style="color:#96b5b4;">as_ref</span><span>().</span><span style="color:#96b5b4;">unwrap</span><span>().kind,
+</span><span>            StateKind::Lit(&#39;</span><span style="color:#a3be8c;">b</span><span>&#39;)
+</span><span>        ));
+</span><span>
+</span><span>        </span><span style="color:#b48ead;">let</span><span> start = </span><span style="color:#96b5b4;">post2nfa</span><span>(vec![&#39;</span><span style="color:#a3be8c;">a</span><span>&#39;, &#39;</span><span style="color:#a3be8c;">?</span><span>&#39;]);
+</span><span>        assert!(matches!(start.kind, StateKind::Split));
+</span><span>        </span><span style="color:#b48ead;">let</span><span> out = Rc::clone(&amp;start.out);
+</span><span>        assert!(matches!(
+</span><span>            out.</span><span style="color:#96b5b4;">borrow_mut</span><span>().</span><span style="color:#96b5b4;">as_ref</span><span>().</span><span style="color:#96b5b4;">unwrap</span><span>().kind,
+</span><span>            StateKind::Lit(&#39;</span><span style="color:#a3be8c;">a</span><span>&#39;)
+</span><span>        ));
+</span><span>        </span><span style="color:#b48ead;">let</span><span> out1 = Rc::clone(&amp;start.out1);
+</span><span>        assert!(matches!(
+</span><span>            out1.</span><span style="color:#96b5b4;">borrow_mut</span><span>().</span><span style="color:#96b5b4;">as_ref</span><span>().</span><span style="color:#96b5b4;">unwrap</span><span>().kind,
+</span><span>            StateKind::Match
+</span><span>        ));
+</span><span>
+</span><span>        </span><span style="color:#b48ead;">let</span><span> start = </span><span style="color:#96b5b4;">post2nfa</span><span>(vec![&#39;</span><span style="color:#a3be8c;">a</span><span>&#39;, &#39;</span><span style="color:#a3be8c;">*</span><span>&#39;]);
+</span><span>        assert!(matches!(start.kind, StateKind::Split));
+</span><span>        </span><span style="color:#b48ead;">let</span><span> out = Rc::clone(&amp;start.out);
+</span><span>        assert!(matches!(
+</span><span>            out.</span><span style="color:#96b5b4;">borrow_mut</span><span>().</span><span style="color:#96b5b4;">as_ref</span><span>().</span><span style="color:#96b5b4;">unwrap</span><span>().kind,
+</span><span>            StateKind::Lit(&#39;</span><span style="color:#a3be8c;">a</span><span>&#39;)
+</span><span>        ));
+</span><span>        assert!(matches!(
+</span><span>            out.</span><span style="color:#96b5b4;">borrow_mut</span><span>()
+</span><span>                .</span><span style="color:#96b5b4;">as_ref</span><span>()
+</span><span>                .</span><span style="color:#96b5b4;">unwrap</span><span>()
+</span><span>                .out
+</span><span>                .</span><span style="color:#96b5b4;">borrow_mut</span><span>()
+</span><span>                .</span><span style="color:#96b5b4;">as_ref</span><span>()
+</span><span>                .</span><span style="color:#96b5b4;">unwrap</span><span>()
+</span><span>                .kind,
+</span><span>            StateKind::Split,
+</span><span>        ));
+</span><span>        assert!(out
+</span><span>            .</span><span style="color:#96b5b4;">borrow_mut</span><span>()
+</span><span>            .</span><span style="color:#96b5b4;">as_ref</span><span>()
+</span><span>            .</span><span style="color:#96b5b4;">unwrap</span><span>()
+</span><span>            .out1
+</span><span>            .</span><span style="color:#96b5b4;">borrow_mut</span><span>()
+</span><span>            .</span><span style="color:#96b5b4;">is_none</span><span>(),);
+</span><span>        </span><span style="color:#b48ead;">let</span><span> out1 = Rc::clone(&amp;start.out1);
+</span><span>        assert!(matches!(
+</span><span>            out1.</span><span style="color:#96b5b4;">borrow_mut</span><span>().</span><span style="color:#96b5b4;">as_ref</span><span>().</span><span style="color:#96b5b4;">unwrap</span><span>().kind,
+</span><span>            StateKind::Match
+</span><span>        ));
+</span><span>
+</span><span>        </span><span style="color:#b48ead;">let</span><span> start = </span><span style="color:#96b5b4;">post2nfa</span><span>(vec![&#39;</span><span style="color:#a3be8c;">a</span><span>&#39;, &#39;</span><span style="color:#a3be8c;">+</span><span>&#39;]);
+</span><span>        assert!(matches!(start.kind, StateKind::Lit(&#39;</span><span style="color:#a3be8c;">a</span><span>&#39;)));
+</span><span>        </span><span style="color:#b48ead;">let</span><span> out = Rc::clone(&amp;start.out);
+</span><span>        assert!(matches!(
+</span><span>            out.</span><span style="color:#96b5b4;">borrow_mut</span><span>().</span><span style="color:#96b5b4;">as_ref</span><span>().</span><span style="color:#96b5b4;">unwrap</span><span>().kind,
+</span><span>            StateKind::Split,
+</span><span>        ));
+</span><span>        assert!(matches!(
+</span><span>            out.</span><span style="color:#96b5b4;">borrow_mut</span><span>()
+</span><span>                .</span><span style="color:#96b5b4;">as_ref</span><span>()
+</span><span>                .</span><span style="color:#96b5b4;">unwrap</span><span>()
+</span><span>                .out
+</span><span>                .</span><span style="color:#96b5b4;">borrow_mut</span><span>()
+</span><span>                .</span><span style="color:#96b5b4;">as_ref</span><span>()
+</span><span>                .</span><span style="color:#96b5b4;">unwrap</span><span>()
+</span><span>                .kind,
+</span><span>            StateKind::Lit(&#39;</span><span style="color:#a3be8c;">a</span><span>&#39;),
+</span><span>        ));
+</span><span>    }
+</span><span>
+</span><span>    #[</span><span style="color:#bf616a;">test</span><span>]
+</span><span>    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">matches_test</span><span>() {
+</span><span>        </span><span style="color:#b48ead;">let</span><span> start = </span><span style="color:#96b5b4;">post2nfa</span><span>(</span><span style="color:#96b5b4;">re2post</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">a</span><span>&quot;)));
+</span><span>        assert!(</span><span style="color:#96b5b4;">matches</span><span>(start, &quot;</span><span style="color:#a3be8c;">a</span><span>&quot;));
+</span><span>        </span><span style="color:#b48ead;">let</span><span> start = </span><span style="color:#96b5b4;">post2nfa</span><span>(</span><span style="color:#96b5b4;">re2post</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">a</span><span>&quot;)));
+</span><span>        assert!(!</span><span style="color:#96b5b4;">matches</span><span>(start, &quot;</span><span style="color:#a3be8c;">ab</span><span>&quot;));
+</span><span>        </span><span style="color:#b48ead;">let</span><span> start = </span><span style="color:#96b5b4;">post2nfa</span><span>(</span><span style="color:#96b5b4;">re2post</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">a</span><span>&quot;)));
+</span><span>        assert!(!</span><span style="color:#96b5b4;">matches</span><span>(start, &quot;</span><span style="color:#a3be8c;">b</span><span>&quot;));
+</span><span>
+</span><span>        </span><span style="color:#b48ead;">let</span><span> start = </span><span style="color:#96b5b4;">post2nfa</span><span>(</span><span style="color:#96b5b4;">re2post</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">ab</span><span>&quot;)));
+</span><span>        assert!(</span><span style="color:#96b5b4;">matches</span><span>(start, &quot;</span><span style="color:#a3be8c;">ab</span><span>&quot;));
+</span><span>
+</span><span>        </span><span style="color:#b48ead;">let</span><span> start = </span><span style="color:#96b5b4;">post2nfa</span><span>(</span><span style="color:#96b5b4;">re2post</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">a|b</span><span>&quot;)));
+</span><span>        assert!(</span><span style="color:#96b5b4;">matches</span><span>(start, &quot;</span><span style="color:#a3be8c;">a</span><span>&quot;));
+</span><span>        </span><span style="color:#b48ead;">let</span><span> start = </span><span style="color:#96b5b4;">post2nfa</span><span>(</span><span style="color:#96b5b4;">re2post</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">a|b</span><span>&quot;)));
+</span><span>        assert!(</span><span style="color:#96b5b4;">matches</span><span>(start, &quot;</span><span style="color:#a3be8c;">b</span><span>&quot;));
+</span><span>        </span><span style="color:#b48ead;">let</span><span> start = </span><span style="color:#96b5b4;">post2nfa</span><span>(</span><span style="color:#96b5b4;">re2post</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">a|b</span><span>&quot;)));
+</span><span>        assert!(!</span><span style="color:#96b5b4;">matches</span><span>(start, &quot;</span><span style="color:#a3be8c;">c</span><span>&quot;));
+</span><span>        </span><span style="color:#b48ead;">let</span><span> start = </span><span style="color:#96b5b4;">post2nfa</span><span>(</span><span style="color:#96b5b4;">re2post</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">abcd|bc?da</span><span>&quot;)));
+</span><span>        assert!(</span><span style="color:#96b5b4;">matches</span><span>(start, &quot;</span><span style="color:#a3be8c;">abcd</span><span>&quot;));
+</span><span>        </span><span style="color:#b48ead;">let</span><span> start = </span><span style="color:#96b5b4;">post2nfa</span><span>(</span><span style="color:#96b5b4;">re2post</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">abcd|bc?da</span><span>&quot;)));
+</span><span>        assert!(</span><span style="color:#96b5b4;">matches</span><span>(start, &quot;</span><span style="color:#a3be8c;">bcda</span><span>&quot;));
+</span><span>        </span><span style="color:#b48ead;">let</span><span> start = </span><span style="color:#96b5b4;">post2nfa</span><span>(</span><span style="color:#96b5b4;">re2post</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">abcd|bc?da</span><span>&quot;)));
+</span><span>        assert!(</span><span style="color:#96b5b4;">matches</span><span>(start, &quot;</span><span style="color:#a3be8c;">bda</span><span>&quot;));
+</span><span>
+</span><span>        </span><span style="color:#b48ead;">let</span><span> start = </span><span style="color:#96b5b4;">post2nfa</span><span>(</span><span style="color:#96b5b4;">re2post</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">a?</span><span>&quot;)));
+</span><span>        assert!(</span><span style="color:#96b5b4;">matches</span><span>(start, &quot;&quot;));
+</span><span>        </span><span style="color:#b48ead;">let</span><span> start = </span><span style="color:#96b5b4;">post2nfa</span><span>(</span><span style="color:#96b5b4;">re2post</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">a?</span><span>&quot;)));
+</span><span>        assert!(</span><span style="color:#96b5b4;">matches</span><span>(start, &quot;</span><span style="color:#a3be8c;">a</span><span>&quot;));
+</span><span>        </span><span style="color:#b48ead;">let</span><span> start = </span><span style="color:#96b5b4;">post2nfa</span><span>(</span><span style="color:#96b5b4;">re2post</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">a?a</span><span>&quot;)));
+</span><span>        assert!(</span><span style="color:#96b5b4;">matches</span><span>(start, &quot;</span><span style="color:#a3be8c;">a</span><span>&quot;));
+</span><span>        </span><span style="color:#b48ead;">let</span><span> start = </span><span style="color:#96b5b4;">post2nfa</span><span>(</span><span style="color:#96b5b4;">re2post</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">a?a</span><span>&quot;)));
+</span><span>        assert!(</span><span style="color:#96b5b4;">matches</span><span>(start, &quot;</span><span style="color:#a3be8c;">aa</span><span>&quot;));
+</span><span>
+</span><span>        </span><span style="color:#b48ead;">let</span><span> start = </span><span style="color:#96b5b4;">post2nfa</span><span>(</span><span style="color:#96b5b4;">re2post</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">a*</span><span>&quot;)));
+</span><span>        assert!(</span><span style="color:#96b5b4;">matches</span><span>(start, &quot;&quot;));
+</span><span>        </span><span style="color:#b48ead;">let</span><span> start = </span><span style="color:#96b5b4;">post2nfa</span><span>(</span><span style="color:#96b5b4;">re2post</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">a*</span><span>&quot;)));
+</span><span>        assert!(</span><span style="color:#96b5b4;">matches</span><span>(start, &quot;</span><span style="color:#a3be8c;">a</span><span>&quot;));
+</span><span>        </span><span style="color:#b48ead;">let</span><span> start = </span><span style="color:#96b5b4;">post2nfa</span><span>(</span><span style="color:#96b5b4;">re2post</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">a*</span><span>&quot;)));
+</span><span>        assert!(</span><span style="color:#96b5b4;">matches</span><span>(start, &quot;</span><span style="color:#a3be8c;">aaaaaaaa</span><span>&quot;));
+</span><span>
+</span><span>        </span><span style="color:#b48ead;">let</span><span> start = </span><span style="color:#96b5b4;">post2nfa</span><span>(</span><span style="color:#96b5b4;">re2post</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">a+</span><span>&quot;)));
+</span><span>        assert!(!</span><span style="color:#96b5b4;">matches</span><span>(start, &quot;&quot;));
+</span><span>        </span><span style="color:#b48ead;">let</span><span> start = </span><span style="color:#96b5b4;">post2nfa</span><span>(</span><span style="color:#96b5b4;">re2post</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">a+</span><span>&quot;)));
+</span><span>        assert!(</span><span style="color:#96b5b4;">matches</span><span>(start, &quot;</span><span style="color:#a3be8c;">a</span><span>&quot;));
+</span><span>        </span><span style="color:#b48ead;">let</span><span> start = </span><span style="color:#96b5b4;">post2nfa</span><span>(</span><span style="color:#96b5b4;">re2post</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">a+</span><span>&quot;)));
+</span><span>        assert!(</span><span style="color:#96b5b4;">matches</span><span>(start, &quot;</span><span style="color:#a3be8c;">aaaaaaaa</span><span>&quot;));
+</span><span>
+</span><span>        </span><span style="color:#b48ead;">let</span><span> start = </span><span style="color:#96b5b4;">post2nfa</span><span>(</span><span style="color:#96b5b4;">re2post</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">a?a?a?aaa</span><span>&quot;)));
+</span><span>        assert!(</span><span style="color:#96b5b4;">matches</span><span>(start, &quot;</span><span style="color:#a3be8c;">aaa</span><span>&quot;));
+</span><span>        </span><span style="color:#b48ead;">let</span><span> start = </span><span style="color:#96b5b4;">post2nfa</span><span>(</span><span style="color:#96b5b4;">re2post</span><span>(</span><span style="color:#96b5b4;">lexer</span><span>(&quot;</span><span style="color:#a3be8c;">a?a?a?aaa</span><span>&quot;)));
+</span><span>        assert!(</span><span style="color:#96b5b4;">matches</span><span>(start, &quot;</span><span style="color:#a3be8c;">aaaaaa</span><span>&quot;));
+</span><span>    }
+</span><span>}
+</span></code></pre>
+<h2 id="can-kao">参考</h2>
 <ul>
-<li><a href="https://swtch.com/%7Ersc/regexp/regexp1.html">Regular Expression Matching Can Be Simple And Fast</a></li>
+<li><a href="https://swtch.com/~rsc/regexp/regexp1.html">Regular Expression Matching Can Be Simple And Fast</a></li>
 </ul>
 
     </div>
@@ -549,7 +549,7 @@
         </main>
         <footer>
             <p>
-                © Mitaka Club 2021<br>
+                © Mitaka Club 2022<br>
                 Powered by <a target="_blank" href="https://getzola.com/">Zola</a>, Theme <a target="_blank" href="https://github.com/zbrox/anpu-zola-theme">Anpu</a>.
             </p>
             <p>

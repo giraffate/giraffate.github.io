@@ -9,7 +9,7 @@
     <title>ビューティフルコード - 正規表現マッチャ</title>
     <meta name="description" content="三鷹で活動しているクラブチームです">
 
-    <link rel="stylesheet" href="https:&#x2F;&#x2F;mitaka.club&#x2F;main.css">
+    <link rel="stylesheet" href="https://mitaka.club/main.css">
 
     
         <link rel="alternate" type="application/rss+xml" title="RSS" href="https://mitaka.club/index.xml">
@@ -69,106 +69,106 @@
 <tr><td>$</td><td>入力文字列の末尾にマッチ</td></tr>
 <tr><td>*</td><td>直前の文字の0回以上の反復</td></tr>
 </tbody></table>
-<pre style="background-color:#2b303b;">
-<code class="language-rs" data-lang="rs"><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">main</span><span style="color:#c0c5ce;">() {
-    println!(&quot;</span><span style="color:#a3be8c;">Hello, world!</span><span style="color:#c0c5ce;">&quot;);
-}
-
-</span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">regexmatch</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">regexp</span><span style="color:#c0c5ce;">: String, </span><span style="color:#bf616a;">text</span><span style="color:#c0c5ce;">: String) -&gt; </span><span style="color:#b48ead;">bool </span><span style="color:#c0c5ce;">{
-    </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> regexp = regexp.</span><span style="color:#96b5b4;">chars</span><span style="color:#c0c5ce;">().collect::&lt;Vec&lt;</span><span style="color:#b48ead;">char</span><span style="color:#c0c5ce;">&gt;&gt;();
-    </span><span style="color:#b48ead;">let</span><span style="color:#c0c5ce;"> text = text.</span><span style="color:#96b5b4;">chars</span><span style="color:#c0c5ce;">().collect::&lt;Vec&lt;</span><span style="color:#b48ead;">char</span><span style="color:#c0c5ce;">&gt;&gt;();
-
-    </span><span style="color:#b48ead;">if</span><span style="color:#c0c5ce;"> regexp[</span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">] == &#39;</span><span style="color:#a3be8c;">^</span><span style="color:#c0c5ce;">&#39; {
-        </span><span style="color:#b48ead;">return </span><span style="color:#96b5b4;">matchhere</span><span style="color:#c0c5ce;">(&amp;regexp[</span><span style="color:#d08770;">1</span><span style="color:#c0c5ce;">..], &amp;text[..]);
-    }
-
-    </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> i = </span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">;
-    </span><span style="color:#b48ead;">loop </span><span style="color:#c0c5ce;">{
-        </span><span style="color:#b48ead;">if </span><span style="color:#96b5b4;">matchhere</span><span style="color:#c0c5ce;">(&amp;regexp[..], &amp;text[i..]) {
-            </span><span style="color:#b48ead;">return </span><span style="color:#d08770;">true</span><span style="color:#c0c5ce;">;
-        }
-
-        i += </span><span style="color:#d08770;">1</span><span style="color:#c0c5ce;">;
-        </span><span style="color:#b48ead;">if</span><span style="color:#c0c5ce;"> i == text.</span><span style="color:#96b5b4;">len</span><span style="color:#c0c5ce;">() {
-            </span><span style="color:#b48ead;">break</span><span style="color:#c0c5ce;">;
-        }
-    }
-
-    </span><span style="color:#d08770;">false
-</span><span style="color:#c0c5ce;">}
-
-</span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">matchhere</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">regexp</span><span style="color:#c0c5ce;">: &amp;[</span><span style="color:#b48ead;">char</span><span style="color:#c0c5ce;">], </span><span style="color:#bf616a;">text</span><span style="color:#c0c5ce;">: &amp;[</span><span style="color:#b48ead;">char</span><span style="color:#c0c5ce;">]) -&gt; </span><span style="color:#b48ead;">bool </span><span style="color:#c0c5ce;">{
-    </span><span style="color:#b48ead;">if</span><span style="color:#c0c5ce;"> regexp.</span><span style="color:#96b5b4;">is_empty</span><span style="color:#c0c5ce;">() {
-        </span><span style="color:#b48ead;">return </span><span style="color:#d08770;">true</span><span style="color:#c0c5ce;">;
-    }
-    </span><span style="color:#b48ead;">if</span><span style="color:#c0c5ce;"> regexp.</span><span style="color:#96b5b4;">len</span><span style="color:#c0c5ce;">() &gt; </span><span style="color:#d08770;">1 </span><span style="color:#c0c5ce;">&amp;&amp; regexp[</span><span style="color:#d08770;">1</span><span style="color:#c0c5ce;">] == &#39;</span><span style="color:#a3be8c;">*</span><span style="color:#c0c5ce;">&#39; {
-        </span><span style="color:#b48ead;">return </span><span style="color:#96b5b4;">matchstar</span><span style="color:#c0c5ce;">(regexp[</span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">], &amp;regexp[</span><span style="color:#d08770;">2</span><span style="color:#c0c5ce;">..], text);
-    }
-    </span><span style="color:#b48ead;">if</span><span style="color:#c0c5ce;"> regexp[</span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">] == &#39;</span><span style="color:#a3be8c;">$</span><span style="color:#c0c5ce;">&#39; &amp;&amp; regexp.</span><span style="color:#96b5b4;">len</span><span style="color:#c0c5ce;">() == </span><span style="color:#d08770;">1 </span><span style="color:#c0c5ce;">{
-        </span><span style="color:#b48ead;">return</span><span style="color:#c0c5ce;"> text.</span><span style="color:#96b5b4;">is_empty</span><span style="color:#c0c5ce;">();
-    }
-    </span><span style="color:#b48ead;">if </span><span style="color:#c0c5ce;">!text.</span><span style="color:#96b5b4;">is_empty</span><span style="color:#c0c5ce;">() &amp;&amp; (regexp[</span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">] == &#39;</span><span style="color:#a3be8c;">.</span><span style="color:#c0c5ce;">&#39; || regexp[</span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">] == text[</span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">]) {
-        </span><span style="color:#b48ead;">return </span><span style="color:#96b5b4;">matchhere</span><span style="color:#c0c5ce;">(&amp;regexp[</span><span style="color:#d08770;">1</span><span style="color:#c0c5ce;">..], &amp;text[</span><span style="color:#d08770;">1</span><span style="color:#c0c5ce;">..]);
-    }
-
-    </span><span style="color:#d08770;">false
-</span><span style="color:#c0c5ce;">}
-
-</span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">matchstar</span><span style="color:#c0c5ce;">(</span><span style="color:#bf616a;">c</span><span style="color:#c0c5ce;">: </span><span style="color:#b48ead;">char</span><span style="color:#c0c5ce;">, </span><span style="color:#bf616a;">regexp</span><span style="color:#c0c5ce;">: &amp;[</span><span style="color:#b48ead;">char</span><span style="color:#c0c5ce;">], </span><span style="color:#bf616a;">text</span><span style="color:#c0c5ce;">: &amp;[</span><span style="color:#b48ead;">char</span><span style="color:#c0c5ce;">]) -&gt; </span><span style="color:#b48ead;">bool </span><span style="color:#c0c5ce;">{
-    </span><span style="color:#b48ead;">let mut</span><span style="color:#c0c5ce;"> i = </span><span style="color:#d08770;">0</span><span style="color:#c0c5ce;">;
-
-    </span><span style="color:#b48ead;">loop </span><span style="color:#c0c5ce;">{
-        </span><span style="color:#b48ead;">if </span><span style="color:#96b5b4;">matchhere</span><span style="color:#c0c5ce;">(regexp, &amp;text[i..]) {
-            </span><span style="color:#b48ead;">return </span><span style="color:#d08770;">true</span><span style="color:#c0c5ce;">;
-        }
-
-        </span><span style="color:#b48ead;">if</span><span style="color:#c0c5ce;"> text[i..].</span><span style="color:#96b5b4;">is_empty</span><span style="color:#c0c5ce;">() {
-            </span><span style="color:#b48ead;">break</span><span style="color:#c0c5ce;">;
-        }
-
-        </span><span style="color:#b48ead;">if</span><span style="color:#c0c5ce;"> c != text[i] &amp;&amp; c != &#39;</span><span style="color:#a3be8c;">.</span><span style="color:#c0c5ce;">&#39; {
-            </span><span style="color:#b48ead;">break</span><span style="color:#c0c5ce;">;
-        }
-
-        </span><span style="color:#b48ead;">if</span><span style="color:#c0c5ce;"> c == text[i] || c == &#39;</span><span style="color:#a3be8c;">.</span><span style="color:#c0c5ce;">&#39; {
-            i += </span><span style="color:#d08770;">1</span><span style="color:#c0c5ce;">;
-            </span><span style="color:#b48ead;">continue</span><span style="color:#c0c5ce;">;
-        }
-
-        </span><span style="color:#b48ead;">break</span><span style="color:#c0c5ce;">;
-    }
-
-    </span><span style="color:#d08770;">false
-</span><span style="color:#c0c5ce;">}
-
-</span><span style="color:#b48ead;">mod </span><span style="color:#c0c5ce;">test {
-    </span><span style="color:#b48ead;">use super</span><span style="color:#c0c5ce;">::*;
-
-    #[</span><span style="color:#bf616a;">test</span><span style="color:#c0c5ce;">]
-    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">regexmatch_test</span><span style="color:#c0c5ce;">() {
-        assert!(</span><span style="color:#96b5b4;">regexmatch</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">abc</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(), &quot;</span><span style="color:#a3be8c;">abc</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()));
-        assert!(</span><span style="color:#96b5b4;">regexmatch</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">cd</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(), &quot;</span><span style="color:#a3be8c;">abcde</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()));
-        assert!(!</span><span style="color:#96b5b4;">regexmatch</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">cd</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(), &quot;</span><span style="color:#a3be8c;">edcba</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()));
-
-        assert!(</span><span style="color:#96b5b4;">regexmatch</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">^abc</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(), &quot;</span><span style="color:#a3be8c;">abcc</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()));
-        assert!(!</span><span style="color:#96b5b4;">regexmatch</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">^abc</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(), &quot;</span><span style="color:#a3be8c;">babc</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()));
-
-        assert!(</span><span style="color:#96b5b4;">regexmatch</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">a.c</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(), &quot;</span><span style="color:#a3be8c;">abc</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()));
-        assert!(!</span><span style="color:#96b5b4;">regexmatch</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">a.c</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(), &quot;</span><span style="color:#a3be8c;">abd</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()));
-
-        assert!(</span><span style="color:#96b5b4;">regexmatch</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">bc$</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(), &quot;</span><span style="color:#a3be8c;">abc</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()));
-        assert!(!</span><span style="color:#96b5b4;">regexmatch</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">bc$</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(), &quot;</span><span style="color:#a3be8c;">abcd</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()));
-
-        assert!(</span><span style="color:#96b5b4;">regexmatch</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">a*c</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(), &quot;</span><span style="color:#a3be8c;">aaac</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()));
-        assert!(</span><span style="color:#96b5b4;">regexmatch</span><span style="color:#c0c5ce;">(&quot;</span><span style="color:#a3be8c;">a.*c</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(), &quot;</span><span style="color:#a3be8c;">abbbbbc</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()));
-
-        assert!(</span><span style="color:#96b5b4;">regexmatch</span><span style="color:#c0c5ce;">(
-            &quot;</span><span style="color:#a3be8c;">a.*a.*a.*a.a</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">(),
-            &quot;</span><span style="color:#a3be8c;">abbbbbbbbbbbbabbbbbbbbbbbbbbabbbbbbbbbbbbbbbaba</span><span style="color:#c0c5ce;">&quot;.</span><span style="color:#96b5b4;">to_string</span><span style="color:#c0c5ce;">()
-        ));
-    }
-}
+<pre data-lang="rs" style="background-color:#2b303b;color:#c0c5ce;" class="language-rs "><code class="language-rs" data-lang="rs"><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">main</span><span>() {
+</span><span>    println!(&quot;</span><span style="color:#a3be8c;">Hello, world!</span><span>&quot;);
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">regexmatch</span><span>(</span><span style="color:#bf616a;">regexp</span><span>: String, </span><span style="color:#bf616a;">text</span><span>: String) -&gt; </span><span style="color:#b48ead;">bool </span><span>{
+</span><span>    </span><span style="color:#b48ead;">let</span><span> regexp = regexp.</span><span style="color:#96b5b4;">chars</span><span>().collect::&lt;Vec&lt;</span><span style="color:#b48ead;">char</span><span>&gt;&gt;();
+</span><span>    </span><span style="color:#b48ead;">let</span><span> text = text.</span><span style="color:#96b5b4;">chars</span><span>().collect::&lt;Vec&lt;</span><span style="color:#b48ead;">char</span><span>&gt;&gt;();
+</span><span>
+</span><span>    </span><span style="color:#b48ead;">if</span><span> regexp[</span><span style="color:#d08770;">0</span><span>] == &#39;</span><span style="color:#a3be8c;">^</span><span>&#39; {
+</span><span>        </span><span style="color:#b48ead;">return </span><span style="color:#96b5b4;">matchhere</span><span>(&amp;regexp[</span><span style="color:#d08770;">1</span><span>..], &amp;text[..]);
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#b48ead;">let mut</span><span> i = </span><span style="color:#d08770;">0</span><span>;
+</span><span>    </span><span style="color:#b48ead;">loop </span><span>{
+</span><span>        </span><span style="color:#b48ead;">if </span><span style="color:#96b5b4;">matchhere</span><span>(&amp;regexp[..], &amp;text[i..]) {
+</span><span>            </span><span style="color:#b48ead;">return </span><span style="color:#d08770;">true</span><span>;
+</span><span>        }
+</span><span>
+</span><span>        i += </span><span style="color:#d08770;">1</span><span>;
+</span><span>        </span><span style="color:#b48ead;">if</span><span> i == text.</span><span style="color:#96b5b4;">len</span><span>() {
+</span><span>            </span><span style="color:#b48ead;">break</span><span>;
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#d08770;">false
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">matchhere</span><span>(</span><span style="color:#bf616a;">regexp</span><span>: &amp;[</span><span style="color:#b48ead;">char</span><span>], </span><span style="color:#bf616a;">text</span><span>: &amp;[</span><span style="color:#b48ead;">char</span><span>]) -&gt; </span><span style="color:#b48ead;">bool </span><span>{
+</span><span>    </span><span style="color:#b48ead;">if</span><span> regexp.</span><span style="color:#96b5b4;">is_empty</span><span>() {
+</span><span>        </span><span style="color:#b48ead;">return </span><span style="color:#d08770;">true</span><span>;
+</span><span>    }
+</span><span>    </span><span style="color:#b48ead;">if</span><span> regexp.</span><span style="color:#96b5b4;">len</span><span>() &gt; </span><span style="color:#d08770;">1 </span><span>&amp;&amp; regexp[</span><span style="color:#d08770;">1</span><span>] == &#39;</span><span style="color:#a3be8c;">*</span><span>&#39; {
+</span><span>        </span><span style="color:#b48ead;">return </span><span style="color:#96b5b4;">matchstar</span><span>(regexp[</span><span style="color:#d08770;">0</span><span>], &amp;regexp[</span><span style="color:#d08770;">2</span><span>..], text);
+</span><span>    }
+</span><span>    </span><span style="color:#b48ead;">if</span><span> regexp[</span><span style="color:#d08770;">0</span><span>] == &#39;</span><span style="color:#a3be8c;">$</span><span>&#39; &amp;&amp; regexp.</span><span style="color:#96b5b4;">len</span><span>() == </span><span style="color:#d08770;">1 </span><span>{
+</span><span>        </span><span style="color:#b48ead;">return</span><span> text.</span><span style="color:#96b5b4;">is_empty</span><span>();
+</span><span>    }
+</span><span>    </span><span style="color:#b48ead;">if </span><span>!text.</span><span style="color:#96b5b4;">is_empty</span><span>() &amp;&amp; (regexp[</span><span style="color:#d08770;">0</span><span>] == &#39;</span><span style="color:#a3be8c;">.</span><span>&#39; || regexp[</span><span style="color:#d08770;">0</span><span>] == text[</span><span style="color:#d08770;">0</span><span>]) {
+</span><span>        </span><span style="color:#b48ead;">return </span><span style="color:#96b5b4;">matchhere</span><span>(&amp;regexp[</span><span style="color:#d08770;">1</span><span>..], &amp;text[</span><span style="color:#d08770;">1</span><span>..]);
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#d08770;">false
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">matchstar</span><span>(</span><span style="color:#bf616a;">c</span><span>: </span><span style="color:#b48ead;">char</span><span>, </span><span style="color:#bf616a;">regexp</span><span>: &amp;[</span><span style="color:#b48ead;">char</span><span>], </span><span style="color:#bf616a;">text</span><span>: &amp;[</span><span style="color:#b48ead;">char</span><span>]) -&gt; </span><span style="color:#b48ead;">bool </span><span>{
+</span><span>    </span><span style="color:#b48ead;">let mut</span><span> i = </span><span style="color:#d08770;">0</span><span>;
+</span><span>
+</span><span>    </span><span style="color:#b48ead;">loop </span><span>{
+</span><span>        </span><span style="color:#b48ead;">if </span><span style="color:#96b5b4;">matchhere</span><span>(regexp, &amp;text[i..]) {
+</span><span>            </span><span style="color:#b48ead;">return </span><span style="color:#d08770;">true</span><span>;
+</span><span>        }
+</span><span>
+</span><span>        </span><span style="color:#b48ead;">if</span><span> text[i..].</span><span style="color:#96b5b4;">is_empty</span><span>() {
+</span><span>            </span><span style="color:#b48ead;">break</span><span>;
+</span><span>        }
+</span><span>
+</span><span>        </span><span style="color:#b48ead;">if</span><span> c != text[i] &amp;&amp; c != &#39;</span><span style="color:#a3be8c;">.</span><span>&#39; {
+</span><span>            </span><span style="color:#b48ead;">break</span><span>;
+</span><span>        }
+</span><span>
+</span><span>        </span><span style="color:#b48ead;">if</span><span> c == text[i] || c == &#39;</span><span style="color:#a3be8c;">.</span><span>&#39; {
+</span><span>            i += </span><span style="color:#d08770;">1</span><span>;
+</span><span>            </span><span style="color:#b48ead;">continue</span><span>;
+</span><span>        }
+</span><span>
+</span><span>        </span><span style="color:#b48ead;">break</span><span>;
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#d08770;">false
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">mod </span><span>test {
+</span><span>    </span><span style="color:#b48ead;">use super</span><span>::*;
+</span><span>
+</span><span>    #[</span><span style="color:#bf616a;">test</span><span>]
+</span><span>    </span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">regexmatch_test</span><span>() {
+</span><span>        assert!(</span><span style="color:#96b5b4;">regexmatch</span><span>(&quot;</span><span style="color:#a3be8c;">abc</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(), &quot;</span><span style="color:#a3be8c;">abc</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>()));
+</span><span>        assert!(</span><span style="color:#96b5b4;">regexmatch</span><span>(&quot;</span><span style="color:#a3be8c;">cd</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(), &quot;</span><span style="color:#a3be8c;">abcde</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>()));
+</span><span>        assert!(!</span><span style="color:#96b5b4;">regexmatch</span><span>(&quot;</span><span style="color:#a3be8c;">cd</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(), &quot;</span><span style="color:#a3be8c;">edcba</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>()));
+</span><span>
+</span><span>        assert!(</span><span style="color:#96b5b4;">regexmatch</span><span>(&quot;</span><span style="color:#a3be8c;">^abc</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(), &quot;</span><span style="color:#a3be8c;">abcc</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>()));
+</span><span>        assert!(!</span><span style="color:#96b5b4;">regexmatch</span><span>(&quot;</span><span style="color:#a3be8c;">^abc</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(), &quot;</span><span style="color:#a3be8c;">babc</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>()));
+</span><span>
+</span><span>        assert!(</span><span style="color:#96b5b4;">regexmatch</span><span>(&quot;</span><span style="color:#a3be8c;">a.c</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(), &quot;</span><span style="color:#a3be8c;">abc</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>()));
+</span><span>        assert!(!</span><span style="color:#96b5b4;">regexmatch</span><span>(&quot;</span><span style="color:#a3be8c;">a.c</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(), &quot;</span><span style="color:#a3be8c;">abd</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>()));
+</span><span>
+</span><span>        assert!(</span><span style="color:#96b5b4;">regexmatch</span><span>(&quot;</span><span style="color:#a3be8c;">bc$</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(), &quot;</span><span style="color:#a3be8c;">abc</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>()));
+</span><span>        assert!(!</span><span style="color:#96b5b4;">regexmatch</span><span>(&quot;</span><span style="color:#a3be8c;">bc$</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(), &quot;</span><span style="color:#a3be8c;">abcd</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>()));
+</span><span>
+</span><span>        assert!(</span><span style="color:#96b5b4;">regexmatch</span><span>(&quot;</span><span style="color:#a3be8c;">a*c</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(), &quot;</span><span style="color:#a3be8c;">aaac</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>()));
+</span><span>        assert!(</span><span style="color:#96b5b4;">regexmatch</span><span>(&quot;</span><span style="color:#a3be8c;">a.*c</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(), &quot;</span><span style="color:#a3be8c;">abbbbbc</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>()));
+</span><span>
+</span><span>        assert!(</span><span style="color:#96b5b4;">regexmatch</span><span>(
+</span><span>            &quot;</span><span style="color:#a3be8c;">a.*a.*a.*a.a</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>(),
+</span><span>            &quot;</span><span style="color:#a3be8c;">abbbbbbbbbbbbabbbbbbbbbbbbbbabbbbbbbbbbbbbbbaba</span><span>&quot;.</span><span style="color:#96b5b4;">to_string</span><span>()
+</span><span>        ));
+</span><span>    }
+</span><span>}
 </span></code></pre>
+
     </div>
 
     
@@ -200,7 +200,7 @@
         </main>
         <footer>
             <p>
-                © Mitaka Club 2021<br>
+                © Mitaka Club 2022<br>
                 Powered by <a target="_blank" href="https://getzola.com/">Zola</a>, Theme <a target="_blank" href="https://github.com/zbrox/anpu-zola-theme">Anpu</a>.
             </p>
             <p>
