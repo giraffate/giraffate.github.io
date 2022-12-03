@@ -7,18 +7,18 @@
         <generator>Zola</generator>
         <language>en</language>
         <atom:link href="https://mitaka.club/index.xml" rel="self" type="application/rss+xml"/>
-        <lastBuildDate>Fri, 02 Dec 2022 00:00:00 +0000</lastBuildDate>
+        <lastBuildDate>Sun, 04 Dec 2022 00:00:00 +0000</lastBuildDate>
         <item>
             <title>clippy-action という GitHub Action をつくっているので紹介する</title>
-            <pubDate>Fri, 02 Dec 2022 00:00:00 +0000</pubDate>
-            <link>https://mitaka.club/20221202/</link>
-            <guid>https://mitaka.club/20221202/</guid>
+            <pubDate>Sun, 04 Dec 2022 00:00:00 +0000</pubDate>
+            <link>https://mitaka.club/20221204/</link>
+            <guid>https://mitaka.club/20221204/</guid>
             <description>&lt;p&gt;Rust には &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;rust-lang&#x2F;rust-clippy&quot;&gt;Clippy&lt;&#x2F;a&gt; という Rust が公式で提供しているリンターがあり、自分はこれが好きで趣味でも仕事でも利用しているしメンテも行っている。&lt;&#x2F;p&gt;
 &lt;p&gt;CI で Clippy を使用する場合には&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;rust-lang&#x2F;rust-clippy&#x2F;blob&#x2F;fec00573a5c1ca233b4aeeaa087168c6cafa3d44&#x2F;book&#x2F;src&#x2F;continuous_integration&#x2F;github_actions.md&quot;&gt;ドキュメント&lt;&#x2F;a&gt;の通り &lt;code&gt;-Dwarnings&lt;&#x2F;code&gt; をオプションに追加してコード全体を Clippy でチェックしてリンターに引っかかるところがあれば CI を落とすようにする、という使い方がある。自分もこうしている。&lt;&#x2F;p&gt;
 &lt;p&gt;しかし、上記の場合には CI の詳細画面まで見にいかないとコードのどこでリンターに引っかかったかがわからず一手間かかっていた。また、自分はたまたまなかったが、プロジェクトの初期は Clippy を使用しておらず途中から Clippy を使いたくなった場合にコード全体をチェックして多くのワーニングが出てしまうことはありそうだと考えた。&lt;&#x2F;p&gt;
 &lt;p&gt;Clippy を使う既存の Action を探したところ &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;actions-rs&#x2F;clippy-check&quot;&gt;clippy-check&lt;&#x2F;a&gt; というのがあったが現状メンテナンスが行われていないようであった。
 このため &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;giraffate&#x2F;clippy-action&quot;&gt;clippy-action&lt;&#x2F;a&gt; というのをつくり始めた。&lt;&#x2F;p&gt;
-&lt;p&gt;&lt;img src=&quot;https:&#x2F;&#x2F;mitaka.club&#x2F;20221202&#x2F;..&#x2F;images&#x2F;20221202&#x2F;clippy_action.png&quot; alt=&quot;clippy_action&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;https:&#x2F;&#x2F;mitaka.club&#x2F;20221204&#x2F;..&#x2F;images&#x2F;20221204&#x2F;clippy_action.png&quot; alt=&quot;clippy_action&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
 &lt;p&gt;使い方は以下の通りで、clippy-action 自体に rust のツールチェインをインストールする機能はないので &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;dtolnay&#x2F;rust-toolchain&quot;&gt;dtolnay&#x2F;rust-toolchain&lt;&#x2F;a&gt; を使用してもらうようにしている。ここで nightly を指定していればプロジェクト自体は stable で開発していたとしても nightly で追加されたリントを先に適用できるといったことが可能になるはずである。&lt;&#x2F;p&gt;
 &lt;pre data-lang=&quot;yml&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-yml &quot;&gt;&lt;code class=&quot;language-yml&quot; data-lang=&quot;yml&quot;&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;name&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;clippy-action
 &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;on&lt;&#x2F;span&gt;&lt;span&gt;: [&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;pull_request&lt;&#x2F;span&gt;&lt;span&gt;]

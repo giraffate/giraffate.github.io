@@ -18,7 +18,7 @@
     
 <meta name="twitter:card" content="summary" />
 <meta name="twitter:site" content="@giraffate" />
-<meta property="og:url" content="https:&#x2F;&#x2F;mitaka.club&#x2F;20221202&#x2F;" />
+<meta property="og:url" content="https:&#x2F;&#x2F;mitaka.club&#x2F;20221204&#x2F;" />
 <meta property="og:title" content="clippy-action という GitHub Action をつくっているので紹介する" />
 <meta property="og:description" content="" />
 <meta property="og:image" content="https:&#x2F;&#x2F;mitaka.club/images/giraffate.jpg" />
@@ -65,7 +65,7 @@
 <p>しかし、上記の場合には CI の詳細画面まで見にいかないとコードのどこでリンターに引っかかったかがわからず一手間かかっていた。また、自分はたまたまなかったが、プロジェクトの初期は Clippy を使用しておらず途中から Clippy を使いたくなった場合にコード全体をチェックして多くのワーニングが出てしまうことはありそうだと考えた。</p>
 <p>Clippy を使う既存の Action を探したところ <a href="https://github.com/actions-rs/clippy-check">clippy-check</a> というのがあったが現状メンテナンスが行われていないようであった。
 このため <a href="https://github.com/giraffate/clippy-action">clippy-action</a> というのをつくり始めた。</p>
-<p><img src="https://mitaka.club/20221202/../images/20221202/clippy_action.png" alt="clippy_action" /></p>
+<p><img src="https://mitaka.club/20221204/../images/20221204/clippy_action.png" alt="clippy_action" /></p>
 <p>使い方は以下の通りで、clippy-action 自体に rust のツールチェインをインストールする機能はないので <a href="https://github.com/dtolnay/rust-toolchain">dtolnay/rust-toolchain</a> を使用してもらうようにしている。ここで nightly を指定していればプロジェクト自体は stable で開発していたとしても nightly で追加されたリントを先に適用できるといったことが可能になるはずである。</p>
 <pre data-lang="yml" style="background-color:#2b303b;color:#c0c5ce;" class="language-yml "><code class="language-yml" data-lang="yml"><span style="color:#bf616a;">name</span><span>: </span><span style="color:#a3be8c;">clippy-action
 </span><span style="color:#d08770;">on</span><span>: [</span><span style="color:#a3be8c;">pull_request</span><span>]
@@ -91,7 +91,7 @@
     
     <div class="article-info">
         
-        <div class="article-date"> 2 December 2022</div>
+        <div class="article-date"> 4 December 2022</div>
         
         <div class="article-taxonomies">
             
